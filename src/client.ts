@@ -378,7 +378,7 @@
 			if (view.kind === "usage" && view.lanes) {
                 view.lanes.forEach(function(lane, i) {
                     body.push(React.createElement("div", { key: "lane-" + i, className: "dsh-usage-caption" }, lane.text));
-                    body.push(React.createElement("div", { key: "track-" + i, className: "dsh-progress" }, React.createElement("div", { className: "dsh-progress-fill", style: { width: lane.remaining + "%" } })));
+                    body.push(React.createElement("div", { key: "track-" + i, className: "dsh-progress" }, React.createElement("div", { className: "dsh-progress-fill", style: { width: lane.remaining + "%", background: lane.remaining <= 10 ? "var(--dsw-static-red-500,#ef4444)" : lane.remaining <= 30 ? "var(--dsw-static-amber-500,#f59e0b)" : "var(--dsw-static-green-500,#22c55e)" } })));
                 });
                 if (view.caption) body.push(React.createElement("div", { key: "cap", className: "dsh-usage-caption" }, view.caption));
             } else if (view.kind === "usage" && view.usageText) {

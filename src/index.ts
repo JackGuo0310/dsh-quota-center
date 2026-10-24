@@ -222,37 +222,7 @@ function volcengineSignedHeaders(ak: string, sk: string, region: string, action:
 	};
 }
 
-// ── ChatGPT subscription (Codex OAuth) usage ────────────────
-//
-// ChatGPT Plus/Pro/Business plans have no public usage API, but the
-// official open-source Codex CLI authenticates against an EXPERIMENTAL
-// internal endpoint that returns the current plan's rate-limit windows:
-//
-//   GET https://chatgpt.com/backend-api/wham/usage
-//   Authorization: Bearer <ChatGPT OAuth access_token>
-//   ChatGPT-Account-Id: <account_id>
-//
-// Two login methods are supported (resolveChatGPTToken tries them in order):
-//
-//   1. DSH-managed device-code login (no Codex CLI needed): the plugin
-//      runs the same OAuth 2.0 device-authorization flow Codex uses and
-//      persists tokens to $DSH_HOME/dsh-quota-center/chatgpt-auth.json.
-//      The settings panel has a "Log in to ChatGPT" button that shows a
-//      one-time code + verification URL; the host polls and exchanges
-//      the authorization code (with PKCE) for tokens.
-//
-//   2. Codex CLI auth.json fallback: if the user has already logged in
-//      via `codex login`, tokens are read from ~/.codex/auth.json (or
-//      $CODEX_HOME/auth.json). This path never writes back to the file
-//      (Codex CLI owns it); refreshed tokens stay in process memory.
-//
-// Either way, the access token is refreshed host-side via the standard
-// OAuth token endpoint using the refresh_token; tokens never reach the
-// browser (rowSpec only forwards display fields).
-//
-// This adapter is explicitly experimental: the endpoint/shape are not
-// a public contract and may drift. Field names are verified against
-// live responses (2026-08) and the openai/codex client.
+// Volcengine's legacy adapters remain available for explicit configuration.
 async function volcengineCall(action: string, region: string, ak: string, sk: string, timeoutMs: number): Promise<any> {
 	const canonicalQuery = volcCanonicalQuery(action, region);
 	const url = `https://${VOLCENGINE_HOST}/?${canonicalQuery}`;
@@ -290,7 +260,6 @@ async function chatgptAuthExists(): Promise<boolean> {
 }
 interface ChatGPTTokenBundle {
     access_token: string; account_id?: string; expires_at_ms?: number;
-    refresh_token?: string; id_token?: string;
 }
 async function readChatGPTAuthFile(): Promise<ChatGPTTokenBundle> {
 	const authJson = chatgptAuthJsonPath();
@@ -320,8 +289,6 @@ async function readChatGPTAuthFile(): Promise<ChatGPTTokenBundle> {
 	}
 	return {
 		access_token: tokens.access_token,
-		refresh_token: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : undefined,
-		id_token: typeof tokens.id_token === 'string' ? tokens.id_token : undefined,
 		account_id: typeof tokens.account_id === 'string' ? tokens.account_id : undefined,
 		expires_at_ms
 	};
@@ -336,7 +303,7 @@ async function resolveChatGPTToken() {
 
 /**
  * Call the experimental ChatGPT usage endpoint. On a 401 the caller may
- * retry once after forcing a token refresh.
+ * prompt the user to log in again in Codex; never refresh or retry auth.
  */
 async function fetchChatGPTUsage(accessToken: string, accountId: string | undefined, timeoutMs: number, proxyUrl?: string): Promise<any> {
 	const headers: Record<string, string> = {
@@ -434,7 +401,7 @@ const CATALOG = [
 	{ id: 'volcengine-coding', label: 'Volcengine Coding', refs: ['VOLC_ACCESS_KEY'], secretRefs: ['VOLC_SECRET_KEY'], endpoint: 'https://open.volcengineapi.com', format: 'volcengine-coding-usage', windowLabels: { rolling: '会话', weekly: '周', monthly: '月' } },
 	// ChatGPT subscription (Plus/Pro/Business via Codex OAuth). Unlike every
 	// other row this does NOT use ctx.credentials: tokens are read from
-	// ~/.codex/auth.json (written by `codex login`) and refreshed host-side.
+	// ~/.codex/auth.json (written and refreshed only by Codex).
 	// `localAuth: 'codex'` makes resolveRows skip credential probing and always
 	// surface the row (the row errors at fetch time if auth.json is missing).
 	{ id: 'chatgpt', label: 'ChatGPT', localAuth: 'codex', endpoint: CHATGPT_USAGE_URL, format: 'chatgpt-subscription', windowLabels: { rolling: '5h', weekly: '周' } }
@@ -690,7 +657,7 @@ const FORMATS = {
 		throw new Error('volcengine-coding-usage is handled inline by fetchRow');
 	},
 	// chatgpt-subscription is dispatched inline in fetchRow because it uses
-	// an OAuth token from ~/.codex/auth.json (with refresh), not ctx.credentials.
+	// an OAuth token from ~/.codex/auth.json (read-only), not ctx.credentials.
 	'chatgpt-subscription': () => {
 		throw new Error('chatgpt-subscription is handled inline by fetchRow');
 	}
@@ -1192,13 +1159,11 @@ function adaptRow(format, body) {
 async function fetchRow(ctx, provider, proxies, clientProxyUrl) {
 	try {
 		// ── ChatGPT subscription (Codex OAuth) ──────────────────
-		// Reads tokens from ~/.codex/auth.json, refreshes host-side,
-		// and queries the experimental wham/usage endpoint. On a 401
-		// we force a single token refresh retry.
+		// Reads Codex credentials without modifying them; 401 is surfaced to the user.
 		if (provider.format === 'chatgpt-subscription') {
 			try {
 				// Per-row proxy (client override or config) covers the usage
-				// query AND token refresh — same region constraints apply.
+				// query only; this plugin never refreshes credentials.
 				const cgProxy = clientProxyUrl !== undefined
 					? clientProxyUrl
 					: (provider.proxy !== undefined ? proxies[provider.proxy] : undefined);
