@@ -5,9 +5,10 @@
 ## 已完成
 
 - 从上游克隆并保留 Git 历史和 MIT 版权。原目录为空，无现有代码覆盖。
+- GitHub 目标 `JackGuo0310/dsh-quota-center` 已存在且为空（无远端 refs），不是 GitHub Fork 网络成员。直接保留现有个人仓库并推送完整上游历史，保留 `upstream`，没有删除或重建仓库。
 - 本机 `gh` 未安装；通过 Git Credential Manager 确认 GitHub 账号为 JackGuo0310，未输出凭据。
 - `npm run check`：现有双端检查通过，新增 7 项专项测试通过。覆盖三家固定配置、缺凭据、实际窗口归一化、剩余百分比、401/403/429、超时异常、凭据不写回、Go 与 Zen 凭据隔离、CONNECT 不携带上游认证头，以及设置在配置请求失败时安全渲染。
-- 本机真实 web profile 已通过 `link:D:/Github/dsh-quota-center` 安装。默认 60 秒、手动刷新、浅色和深色布局、三家同时显示、服务商开关已手工验证。
+- 本机真实 web profile 已通过 `link:D:/Github/dsh-quota-center` 安装。默认 60 秒、手动刷新、浅色和深色布局、三家同时显示、服务商开关及页面重载后的设置恢复已手工验证；主题已恢复为跟随系统。
 - ChatGPT Plus：使用真实 Codex 凭据只读查询成功，返回的窗口按实际时长显示，包含剩余比例与重置时间。未调用 OAuth 登录或刷新接口。
 - DeepSeek：真实余额接口查询成功，CNY 总余额与充值、赠送明细显示正常。
 - OpenCode Go：本机 Go 专属 Key 被读取，真实接口返回 HTTP 401。用户确认当前没有有效订阅；401 本身不用于推断具体订阅状态，面板显示未知值及错误，不填充虚构窗口额度。
