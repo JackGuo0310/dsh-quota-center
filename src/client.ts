@@ -166,8 +166,9 @@
 			'#dsh-quota-capsule .dsh-capsule-item.state-error{color:var(--dsw-static-red-500,#ef4444)}',
 			'#dsh-quota-capsule .dsh-capsule-item.state-ok.dsh-usage{color:var(--dsw-static-green-500,#22c55e)}',
 			'#dsh-quota-capsule .dsh-capsule-chevron{color:var(--dsw-alias-label-tertiary,#818590);font-size:11px;line-height:1}',
-			'#dsh-quota-card{width:300px;max-width:calc(100vw - 36px);max-height:calc(100vh - 36px);margin-top:8px;padding:14px 16px 15px;overflow-y:auto;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:16px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv3,0 8px 26px rgba(15,17,21,.1),0 2px 6px rgba(15,17,21,.06));box-sizing:border-box}',
-			'#dsh-quota-card .dsh-quota-header{position:sticky;top:-14px;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:13px;padding-top:14px;background:var(--dsw-alias-bg-layer-2,#fff);cursor:grab;user-select:none;touch-action:none}',
+			'#dsh-quota-card{width:300px;max-width:calc(100vw - 36px);max-height:min(calc(100dvh - 36px),var(--dsh-quota-available-height,100dvh));margin-top:8px;padding:14px 16px 15px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:16px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv3,0 8px 26px rgba(15,17,21,.1),0 2px 6px rgba(15,17,21,.06));box-sizing:border-box}',
+			'#dsh-quota-card .dsh-quota-header{flex-shrink:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:13px;background:var(--dsw-alias-bg-layer-2,#fff);cursor:grab;user-select:none;touch-action:none}',
+			'#dsh-quota-card .dsh-quota-content{min-height:0;overflow-y:auto;overscroll-behavior:contain}',
 			'#dsh-quota-card .dsh-quota-title{color:var(--dsw-alias-label-primary,#1b1b1c);font-size:14px;font-weight:600;line-height:20px}',
 			'#dsh-quota-card .dsh-quota-actions{display:flex;gap:4px;margin:-3px -4px -3px 0}',
 			'#dsh-quota-card .dsh-quota-icon{display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:8px;color:var(--dsw-alias-label-secondary,#61666b);background:transparent;font-size:16px;line-height:1;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}',
@@ -576,6 +577,21 @@
 				var expanded = expState[0], setExpanded = expState[1];
 				var setOpen = React.useState(false);
 				var settingsOpen = setOpen[0], setSettingsOpen = setOpen[1];
+                React.useEffect(function () {
+                    if (!expanded) return;
+                    var collapseOutside = function (event) {
+                        var panel = document.getElementById("dsh-quota-center");
+                        if (panel && panel.contains(event.target)) return;
+                        setExpanded(false);
+                        setSettingsOpen(false);
+                    };
+                    document.addEventListener("pointerdown", collapseOutside, true);
+                    document.addEventListener("focusin", collapseOutside, true);
+                    return function () {
+                        document.removeEventListener("pointerdown", collapseOutside, true);
+                        document.removeEventListener("focusin", collapseOutside, true);
+                    };
+                }, [expanded]);
 				var refreshState = React.useState(false);
 				var refreshing = refreshState[0], setRefreshing = refreshState[1];
 				var settingsState = React.useState(readSettings);
@@ -599,7 +615,7 @@
 				var dragPosState = React.useState(null);
 				var dragPos = dragPosState[0], setDragPos = dragPosState[1];
 				var panelPos = dragPos ?? settings.position ?? null;
-				var panelStyle = panelPos ? { right: Math.max(0, Math.round(globalThis.innerWidth - panelPos.x)) + "px", bottom: Math.max(0, Math.round(globalThis.innerHeight - panelPos.y)) + "px" } : null;
+				var panelStyle = panelPos ? { "--dsh-quota-available-height": Math.max(0, panelPos.y - DRAG_EDGE) + "px", right: Math.max(0, Math.round(globalThis.innerWidth - panelPos.x)) + "px", bottom: Math.max(0, Math.round(globalThis.innerHeight - panelPos.y)) + "px" } : null;
 
 				var startDrag = function (event) {
 					if (event.button !== undefined && event.button !== 0) return;
@@ -832,7 +848,7 @@
 									"aria-label": t("collapse"),
 									onClick: function () { setExpanded(false); }
 								}, "▴"))),
-						bodyChildren));
+						React.createElement("div", { className: "dsh-quota-content" }, bodyChildren)));
 			}
 
 			ctx.effect(function () {
