@@ -199,7 +199,7 @@ build_profile() {
 			;;
 	esac
 	[ -f "$STATE/profiles/web/package.json" ] || die "dsh plugin add 未生成 $STATE/profiles/web/package.json"
-	register_bundle_rows dsh-quota-panel
+	register_bundle_rows dsh-quota-center
 }
 
 # 从 `dsh --dump-config` 的 stdout 里精确判定"目标插件行"是否存在。
@@ -208,11 +208,11 @@ build_profile() {
 # tests/fixtures/real-dump-sample.txt）：
 #   组合树是 YAML 列表，插件行形如
 #     - id: quota-panel              <- 顶层列表项：`-` 在第 0 列
-#       name: dsh-quota-panel        <- 该行的 name 恰好缩进 2 空格、裸值、行尾无内容
+#       name: dsh-quota-center        <- 该行的 name 恰好缩进 2 空格、裸值、行尾无内容
 #   行的 config 块则更深（4 空格起）。该层插入处另有一行注释头 `# == <包名>`。
 #   注释头与 name 值都可能是影子（base 层被 patch 时 section 头是
 #   `# == <base>, patched by <plugin>`；同名前缀的包也有同样的 `- id:`/`name:` 行），
-#   所以只按"整份文本含子串"判绿会被注释头、相似包名（dsh-quota-panel-companion）
+#   所以只按"整份文本含子串"判绿会被注释头、相似包名（dsh-quota-center-companion）
 #   和 dsh 自身诊断骗过。
 #
 # 本函数只按上面这份**已实测的**规范做行级判定，不实现通用 YAML 解析：
@@ -263,12 +263,12 @@ dump_profile() {
 	[ "$rc" -eq 0 ] \
 		|| die "dsh --dump-config 失败（rc=$rc），见 $dump 与 $dump_err"
 	# 同理：断言的非零返回是"判定结果"而不是脚本错误，由 if 显式捕获并转成 die 报文。
-	if assert_plugin_row "$dump" dsh-quota-panel; then
+	if assert_plugin_row "$dump" dsh-quota-center; then
 		:
 	else
-		die "组合树中没有 dsh-quota-panel 行（patch 层未生效）"
+		die "组合树中没有 dsh-quota-center 行（patch 层未生效）"
 	fi
-	log profile "装配断言通过：组合树包含 dsh-quota-panel"
+	log profile "装配断言通过：组合树包含 dsh-quota-center"
 }
 
 # 可选：装卸配断言的对照测试（测试脚本与 fixture 由镜像打进 /usr/local/lib/testbed-tests，

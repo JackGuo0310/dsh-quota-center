@@ -1,4 +1,4 @@
-// Dual-face check for dsh-quota-panel v0.5+ (host RPC half + browser client half).
+// Dual-face check for dsh-quota-center v0.5+ (host RPC half + browser client half).
 //
 // Part A exercises lib/index.js: Config schema defaults, cross-field
 // validation, the loopback RPC channel contract (specs / fetch-all /
@@ -12,7 +12,7 @@ import vm from 'node:vm';
 import http from 'node:http';
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // Hermetic default: point CODEX_HOME at an empty temp dir so the ChatGPT
@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path';
 process.env.CODEX_HOME = process.env.CODEX_HOME || mkdtempSync(join(tmpdir(), 'dsh-qp-test-'));
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const plugin = await import(`file://${join(root, 'lib/index.js')}`);
+const plugin = await import(pathToFileURL(join(root, 'lib/index.js')).href);
 let ok = true;
 const check = (name, pass) => {
 	console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}`);
@@ -73,10 +73,10 @@ let handler = mount({
 
 check('A: one Fetch route per RPC endpoint', routes.length === plugin.RPC_ENDPOINTS.length);
 check('A: specs + fetch-all + chatgpt routes registered', plugin.RPC_ENDPOINTS.every((endpoint) => routes.some((r) => r.path === plugin.rpcRoutePath(endpoint))));
-check('A: routes live on the authenticated /api channel', routes.every((r) => r.path === `/api/dsh-quota-panel/${r.path.split('/').pop()}` && r.path.startsWith('/api/dsh-quota-panel/')));
+check('A: routes live on the authenticated /api channel', routes.every((r) => r.path === `/api/dsh-quota-center/${r.path.split('/').pop()}` && r.path.startsWith('/api/dsh-quota-center/')));
 check('A: routes are POST-only buffered JSON endpoints', routes.every((r) => r.requestBody === 'buffered' && Array.isArray(r.methods) && r.methods.length === 1 && r.methods[0] === 'POST' && typeof r.fetch === 'function'));
 check('A: no third-party rpc.handle registration', !('rpc' in hostCtx.connection));
-check('A: rpc method namespace', plugin.rpcMethod('specs') === 'dsh-quota-panel/specs' && plugin.rpcRoutePath('specs') === '/api/dsh-quota-panel/specs');
+check('A: rpc method namespace', plugin.rpcMethod('specs') === 'dsh-quota-center/specs' && plugin.rpcRoutePath('specs') === '/api/dsh-quota-center/specs');
 
 // Envelope contract: the browser half posts {type:'client-request', rpcId,
 // method, payload} through Connection's own client RPC helper and validates
@@ -96,7 +96,7 @@ check('A: rpc method namespace', plugin.rpcMethod('specs') === 'dsh-quota-panel/
 	check('A: malformed JSON body -> error envelope', badBody.type === 'server-response' && badBody.result?.ok === false
 		&& typeof badBody.result.error.code === 'string' && typeof badBody.result.error.message === 'string'
 		&& typeof badBody.result.error.details === 'object' && !Array.isArray(badBody.result.error.details));
-	const mismatch = await specsRoute.fetch(rpcRequest('specs', null, 'env-2', 'dsh-quota-panel/fetch-all'));
+	const mismatch = await specsRoute.fetch(rpcRequest('specs', null, 'env-2', 'dsh-quota-center/fetch-all'));
 	const mismatchBody = await mismatch.json();
 	check('A: method/route mismatch -> error envelope', mismatchBody.type === 'server-response' && mismatchBody.rpcId === 'env-2'
 		&& mismatchBody.result?.ok === false && mismatchBody.result.error.code === 'gateway/bad-request');
@@ -602,7 +602,7 @@ check('A: chatgpt plus -> weekly-only window parsed', (() => {
 		&& row.view.windows?.weekly?.percent === 42
 		&& row.view.windows?.rolling === undefined
 		&& typeof row.view.windows?.weekly?.resetsAt === 'string'
-		&& /plan: plus/.test(row.view.title);
+		&& /plus/.test(row.view.title);
 })());
 // Pro, real layout: primary = 5h session, secondary = weekly pool (issue #7).
 const cgPro = await cgFetchWith({
@@ -640,9 +640,9 @@ const cgNoDur = await cgFetchWith({
 		secondary_window: { used_percent: 20, reset_at: 1788163200 }
 	}
 });
-check('A: chatgpt missing durations -> positional 5h/weekly defaults', (() => {
+check('A: chatgpt missing durations stay unknown', (() => {
 	const row = cgRow(cgNoDur);
-	return row?.view?.windows?.rolling?.percent === 10 && row?.view?.windows?.weekly?.percent === 20;
+	return row?.view?.windows?.primary_window?.percent === 10 && row?.view?.windows?.secondary_window?.percent === 20 && !row?.view?.windows?.rolling;
 })());
 // Missing auth.json -> row hidden (probes file existence)
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'dsh-qp-nocodex-'));
@@ -652,134 +652,6 @@ plugin.apply(noCtx, {});
 const noSpecs = await callRoute(noRoutes, 'specs', null);
 check('A: chatgpt hidden when auth.json does not exist', !noSpecs.value.rows.some((r) => r.id === 'chatgpt'));
 process.env.CODEX_HOME = prevCodexHome;
-
-// DSH-managed device-login token store: when $DSH_HOME/dsh-quota-panel/chatgpt-auth.json
-// exists but no Codex auth.json does, the row should still appear and the auth-status
-// RPC should report source='dsh'.
-{
-	const prevDsh = process.env.DSH_HOME;
-	const dshHome = mkdtempSync(join(tmpdir(), 'dsh-qp-dshhome-'));
-	process.env.DSH_HOME = dshHome;
-	const storeDir = join(dshHome, 'dsh-quota-panel');
-	mkdirSync(storeDir, { recursive: true });
-	const exp = Date.now() + 3600_000;
-	writeFileSync(join(storeDir, 'chatgpt-auth.json'), JSON.stringify({
-		source: 'dsh', account_id: 'acct-dsh-1', plan_type: 'pro',
-		tokens: { access_token: 'eyJ.dsh-access', refresh_token: 'rt-dsh', id_token: 'x', expires_at_ms: exp }
-	}));
-	const regs = [];
-	const ctx2 = { connection: { fetch: fetchRegistry(regs) }, credentials: { resolve: async () => undefined } };
-	plugin.apply(ctx2, {});
-	const h2 = (endpoint, payload) => callRoute(regs, endpoint, payload);
-	const s2 = await h2('specs', null);
-	check('A: chatgpt discovered via DSH store without Codex auth.json', s2.value.rows.some((r) => r.id === 'chatgpt'));
-	const st = await h2('chatgpt-auth-status', null, undefined);
-	check('A: chatgpt-auth-status reports source=dsh + plan', st.ok && st.value.source === 'dsh' && st.value.loggedIn === true && st.value.plan_type === 'pro');
-	// logout removes the DSH store and flips status
-	await h2('chatgpt-logout', null, undefined);
-	const st2 = await h2('chatgpt-auth-status', null, undefined);
-	check('A: chatgpt-logout clears DSH store', st2.ok && st2.value.loggedIn === false && st2.value.source === null);
-	process.env.DSH_HOME = prevDsh;
-}
-// chatgpt-login-start: when there is no Codex auth and no DSH store, the host
-// should return a one-time code + verification URL (network permitting). We do
-// not hit the real network in CI; just assert the RPC surface exists and
-// cancelling leaves no in-flight state.
-{
-	const prevDsh = process.env.DSH_HOME;
-	const prevCodex = process.env.CODEX_HOME;
-	process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'dsh-qp-empty-dsh-'));
-	process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'dsh-qp-empty-codex-'));
-	const regs = [];
-	const ctx3 = { connection: { fetch: fetchRegistry(regs) }, credentials: { resolve: async () => undefined } };
-	plugin.apply(ctx3, {});
-	const h3 = (endpoint, payload) => callRoute(regs, endpoint, payload);
-	// cancel is safe even with nothing in flight
-	const c = await h3('chatgpt-login-cancel', null, undefined);
-	check('A: chatgpt-login-cancel is safe with no in-flight login', c.ok === true && c.value.cancelled === true);
-	// Regression: a DENIED device login must record the error and keep the
-	// process alive — the poll is fire-and-forget, and the old code threw
-	// from it (unhandled rejection kills the process under Node's default
-	// --unhandled-rejections=throw policy). If this regresses, the test
-	// process itself dies before the check can even run.
-	{
-		const realFetch2 = globalThis.fetch;
-		globalThis.fetch = async (url) => {
-			const u = String(url);
-			if (u.includes('/deviceauth/usercode')) {
-				return { ok: true, status: 200, json: async () => ({ user_code: 'WGJK-MBCD', device_auth_id: 'da_test_1', interval: 1 }) };
-			}
-			if (u.includes('/deviceauth/token')) {
-				return { ok: true, status: 200, json: async () => ({ error: 'access_denied' }) };
-			}
-			return { ok: false, status: 404, json: async () => ({}) };
-		};
-		try {
-			const start = await h3('chatgpt-login-start', null, undefined);
-			check('A: chatgpt-login-start returns code + url', start.ok === true && !!start.value.userCode && !!start.value.verificationUrl);
-			await new Promise((r) => setTimeout(r, 2000));
-			const st = await h3('chatgpt-auth-status', null, undefined);
-			check('A: denied device login records error instead of crashing', st.ok === true && st.value.login.active === false && /access_denied|denied/i.test(st.value.login.error || ''));
-			// a fresh start clears the recorded error
-			await h3('chatgpt-login-cancel', null, undefined);
-			const st3 = await h3('chatgpt-auth-status', null, undefined);
-			check('A: cancel clears the recorded login error', st3.ok === true && !st3.value.login.error);
-		} finally {
-			globalThis.fetch = realFetch2;
-		}
-	}
-	// Region-blocked usercode request: auth.openai.com answers 403 with a
-	// NESTED error object (real body captured 2026-08):
-	//   {"error":{"code":"unsupported_country_region_territory","message":"Country, region, or territory not supported",...}}
-	// The surfaced message must carry message + code — never "[object Object]".
-	{
-		const realFetch3 = globalThis.fetch;
-		globalThis.fetch = async () => ({
-			ok: false, status: 403,
-			json: async () => ({ error: { code: 'unsupported_country_region_territory', message: 'Country, region, or territory not supported', param: null, type: 'request_forbidden' } })
-		});
-		try {
-			const start = await h3('chatgpt-login-start', null, undefined);
-			const msg = (start.ok === false && start.error && start.error.message) || '';
-			check('A: nested oauth error object is rendered, not [object Object]',
-				start.ok === false && msg.includes('Country, region, or territory not supported')
-					&& msg.includes('unsupported_country_region_territory') && !msg.includes('[object Object]'));
-		} finally {
-			globalThis.fetch = realFetch3;
-		}
-	}
-	// login-start with payload.proxy: the OAuth requests must go through the
-	// proxy (a local CONNECT-refusing proxy), proving the login flow no
-	// longer bypasses the plugin's proxy plumbing. A direct fetch would
-	// surface the 403 region error instead of a proxy failure.
-	{
-		const refProxy = http.createServer((req, res) => { res.destroy(); });
-		refProxy.on('connect', (req, clientSocket) => {
-			clientSocket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-			clientSocket.destroy();
-		});
-		await new Promise((r) => refProxy.listen(0, '127.0.0.1', r));
-		const refPort = refProxy.address().port;
-		const realFetch4 = globalThis.fetch;
-		let directHit = false;
-		globalThis.fetch = async () => { directHit = true; return { ok: false, status: 403, json: async () => ({ error: { code: 'unsupported_country_region_territory', message: 'nope', param: null, type: 'request_forbidden' } }) }; };
-		try {
-			const start = await h3('chatgpt-login-start', { proxy: `http://127.0.0.1:${refPort}` }, undefined);
-			const msg = (start.ok === false && start.error && start.error.message) || '';
-			check('A: login-start routes the device flow through payload.proxy',
-				start.ok === false && /proxy CONNECT failed/i.test(msg) && directHit === false);
-		} finally {
-			globalThis.fetch = realFetch4;
-			refProxy.close();
-		}
-		// invalid proxy URL is rejected up front with a clear message
-		const bad = await h3('chatgpt-login-start', { proxy: 'ftp://not-a-proxy' }, undefined);
-		check('A: login-start rejects a non-http(s) proxy url', bad.ok === false && /proxy/i.test(bad.error?.message || ''));
-		await h3('chatgpt-login-cancel', null, undefined);
-	}
-	process.env.DSH_HOME = prevDsh;
-	process.env.CODEX_HOME = prevCodex;
-}
 
 // ---------- A2d: search lane unknown / absent weekly (no fabricated 0%) ----------
 credentialMap = { ZAI_CODING_CN_API_KEY: 'sk-zai-cn', ZAI_API_KEY: 'sk-zai', KIMI_API_KEY: 'sk-kimi', MINIMAX_CN_API_KEY: 'sk-mmcn', ZHIPU_API_KEY: 'sk-zp' };
@@ -1268,7 +1140,7 @@ vm.createContext(sandbox);
 vm.runInContext(clientSource, sandbox);
 
 check('B: one handoff registered', handoffs.length === 1);
-check('B: handoff id matches package name', handoffs[0]?.id === 'dsh-quota-panel');
+check('B: handoff id matches package name', handoffs[0]?.id === 'dsh-quota-center');
 
 // A minimal React stub: enough for module-level + apply-time usage.
 const reactStub = {
@@ -1303,8 +1175,8 @@ const clientCtx = {
 };
 clientExports.apply(clientCtx);
 check('B: injects into shell.overlay', injectedSlot === 'shell.overlay');
-check('B: registers entry id dsh-quota-panel', registered?.spec?.id === 'dsh-quota-panel' && registered?.spec?.name === 'shell.overlay' && registered?.spec?.locale === 'quota-panel');
-check('B: locale dictionaries registered (zh + en)', !!localeDicts && localeDicts.ns === 'quota-panel' && !!localeDicts.dicts.zh && !!localeDicts.dicts.en && localeDicts.dicts.zh.title === '模型额度' && localeDicts.dicts.en.title === 'Model quota');
+check('B: registers entry id dsh-quota-center', registered?.spec?.id === 'dsh-quota-center' && registered?.spec?.name === 'shell.overlay' && registered?.spec?.locale === 'quota-panel');
+check('B: locale dictionaries registered (zh + en)', !!localeDicts && localeDicts.ns === 'quota-panel' && !!localeDicts.dicts.zh && !!localeDicts.dicts.en && localeDicts.dicts.zh.title === '额度中心' && localeDicts.dicts.en.title === 'Model quota');
 const element = registered.renderer({ t: (key) => key });
 check('B: renderer returns element', element && typeof element.type === 'function');
 
@@ -1349,9 +1221,9 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 		modeView[mode] = rowView(t2, { ...baseSpec, capsuleMode: mode }, entry2);
 	}
 	modeView.unset = rowView(t2, { ...baseSpec }, entry2);
-	check('B: capsule auto = highest window (default behavior kept)', modeView.auto.summary === '40%' && modeView.unset.summary === '40%' && modeView.max.summary === '40%');
-	check('B: capsule rolling shows the 5h window', modeView.rolling.summary === '1%' && modeView.rolling.barPercent === 1);
-	check('B: capsule weekly shows the weekly window (not the max)', rowView(t2, { ...baseSpec, capsuleMode: 'weekly' }, { view: { kind: 'usage', windows: { rolling: { percent: 90, resetsAt: '2026-08-19T14:20:00.000Z' }, weekly: { percent: 40, resetsAt: '2026-08-21T12:01:00.000Z' } } } }).summary === '40%');
+	check('B: capsule auto = highest window (default behavior kept)', modeView.auto.summary === '60%' && modeView.unset.summary === '60%' && modeView.max.summary === '60%');
+	check('B: capsule rolling shows the 5h window', modeView.rolling.summary === '99%' && modeView.rolling.barPercent === 99);
+	check('B: capsule weekly shows the weekly window (not the max)', rowView(t2, { ...baseSpec, capsuleMode: 'weekly' }, { view: { kind: 'usage', windows: { rolling: { percent: 90, resetsAt: '2026-08-19T14:20:00.000Z' }, weekly: { percent: 40, resetsAt: '2026-08-21T12:01:00.000Z' } } } }).summary === '60%');
 	check('B: capsule status aligns with the shown window (5h 1% stays ok despite weekly 40%)', modeView.rolling.status === 'ok' && modeView.auto.status === 'ok');
 	const splitEntry = { view: { kind: 'usage', windows: {
 		rolling: { percent: 10, resetsAt: '2026-08-19T14:20:00.000Z' },
@@ -1370,9 +1242,9 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 		rolling: { percent: 30, resetsAt: '2026-08-19T14:20:00.000Z' },
 		monthly: { percent: 5, resetsAt: '2026-08-19T12:01:00.000Z' }
 	} } };
-	check('B: capsule weekly on a plan without weekly falls back to highest', rowView(t2, { ...baseSpec, capsuleMode: 'weekly' }, noWeekly).summary === '30%');
+	check('B: capsule weekly on a plan without weekly falls back to highest', rowView(t2, { ...baseSpec, capsuleMode: 'weekly' }, noWeekly).summary === '70%');
 	const noRolling = { view: { kind: 'usage', windows: { weekly: { percent: 80, resetsAt: '2026-08-21T12:01:00.000Z' } } } };
-	check('B: capsule rolling on a plan without rolling falls back to highest', rowView(t2, { ...baseSpec, capsuleMode: 'rolling' }, noRolling).summary === '80%');
+	check('B: capsule rolling on a plan without rolling falls back to highest', rowView(t2, { ...baseSpec, capsuleMode: 'rolling' }, noRolling).summary === '20%');
 	const tReset = (key, params) => (key === 'nextReset' ? `下次重置 ${params.time}` : key);
 	// fmtNextReset renders in the runner's LOCAL timezone, so the expected
 	// string must be computed with the same local-time formatting instead of
@@ -1383,23 +1255,21 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 	};
 	const weeklyOnly = rowView(tReset, { ...baseSpec, windowLabels: { weekly: '7天' } }, noRolling);
-	check('B: weekly-only usage text shows reset inline and drops empty 滚/月', weeklyOnly.usageText === '7天 80% · 下次重置 ' + fmtLocalReset('2026-08-21T12:01:00.000Z'));
-	check('B: multi-window usage text keeps 滚/周/月 and no inline reset', modeView.auto.usageText === 'winRolling 1% · winWeekly 40% · winMonthly 1%');
+    check('B: weekly-only shows remaining and Beijing reset', weeklyOnly.usageText.includes('7天：剩余 20%') && weeklyOnly.usageText.includes('北京时间') && weeklyOnly.lanes.length === 1);
+    check('B: all windows show remaining and reset', modeView.auto.lanes.length === 3 && modeView.auto.usageText.includes('剩余 60%') && modeView.auto.usageText.includes('北京时间'));
 	check('B: capsule mode setting + dictionary keys shipped', clientSource.includes('capsuleMode') && clientSource.includes('settingsCapsule') && clientSource.includes('capsuleAuto') && clientSource.includes('capsuleRolling') && clientSource.includes('capsuleWeekly') && clientSource.includes('capsuleMax'));
 	// ChatGPT account section: the proxy input lives INSIDE the section
 	// (the row may not be on the panel yet, so the generic per-row proxy
 	// grid cannot host it) and login-start forwards it as payload.proxy.
-	check('B: chatgpt proxy input + payload forwarding shipped',
-		clientSource.includes('chatgptProxy') && clientSource.includes('chatgptProxyHint')
-			&& clientSource.includes('"chatgpt-login-start", { proxy: cgProxy || null }')
-			&& clientSource.includes('proxy.chatgpt'));
+    check('B: no in-plugin ChatGPT login', !clientSource.includes('chatgpt-login-start') && clientSource.includes('不会登录、刷新或修改'));
+
 	// Layout fixes from issue #1: the capsule must clear the bottom status
 	// row, and the shell overlay layer must not sit UNDER body-mounted
 	// third-party fixed panels (z-index 1000+).
 	// Layout from issue #1, reworked per maintainer feedback: the default
 	// position stays 18px (60px looked bad) and the panel is DRAGGABLE
 	// instead; the overlay lift stays.
-	check('B: capsule default bottom stays 18px (drag replaces the offset)', /#dsh-quota-panel\{[^}]*bottom:18px/.test(clientSource));
+	check('B: capsule default bottom stays 18px (drag replaces the offset)', /#dsh-quota-center\{[^}]*bottom:18px/.test(clientSource));
 	check('B: overlay layer lift rule injected (z-index 1150 over body panels)', clientSource.includes('[class*="overlayLayer"]{z-index:1150 !important;}'));
 	check('B: settings card stays within viewport and scrolls internally', /#dsh-quota-card\{[^}]*max-height:calc\(100vh - 36px\)[^}]*overflow-y:auto/.test(clientSource));
 	check('B: settings header stays visible while the card scrolls', /#dsh-quota-card \.dsh-quota-header\{[^}]*position:sticky[^}]*top:-14px/.test(clientSource));
@@ -1445,17 +1315,17 @@ const surface = {
 	'settings: refresh interval key': clientSource.includes('settingsInterval') && clientSource.includes('followConfig'),
 	'settings: warn thresholds key': clientSource.includes('settingsThresholds'),
 	'settings: proxy section key': clientSource.includes('settingsProxy') && clientSource.includes('setProxy'),
-	'fetch-all payload carries proxy': clientSource.includes('"fetch-all", { proxy: proxyPayload }'),
+	'fetch-all payload carries proxy': clientSource.includes('"fetch-all", { proxy: proxyPayload, hidden:'),
 	'reset clears proxy': clientSource.includes('proxy: {}'),
 	'settings: reset button key': clientSource.includes('resetDefaults'),
-	'settings persist localStorage': clientSource.includes('localStorage') && clientSource.includes('dsh-quota-panel:settings'),
+	'settings persist localStorage': clientSource.includes('localStorage') && clientSource.includes('dsh-quota-center:settings'),
 	'pointer-events opt-in (overlay)': clientSource.includes('pointer-events:auto'),
 	'rpc channel matches host': clientSource.includes(`"${plugin.RPC_CHANNEL}"`) && clientSource.includes(`"${plugin.RPC_METHOD_PREFIX}"`) && clientSource.includes('"specs"') && clientSource.includes('"fetch-all"'),
 	'rpc error keys': clientSource.includes('loadFailed') && clientSource.includes('fetchFailed'),
 	'hidden-page skip': clientSource.includes('document.hidden'),
 	'visibilitychange': clientSource.includes('visibilitychange'),
 	'hidden-all fallback key': clientSource.includes('allHidden'),
-	'zh and en dictionaries shipped': clientSource.includes('title: "模型额度"') && clientSource.includes('title: "Model quota"') && clientSource.includes('zh: {') && clientSource.includes('en: {'),
+	'zh and en dictionaries shipped': clientSource.includes('title: "额度中心"') && clientSource.includes('title: "Model quota"') && clientSource.includes('zh: {') && clientSource.includes('en: {'),
 	'view kinds rendered': clientSource.includes('view.kind === "usage"') && clientSource.includes('view.kind === "info"') && clientSource.includes('"balance"'),
 	'info status styled': clientSource.includes('state-info'),
 	'settings thresholds follow spec.kind': clientSource.includes('spec.kind === "info"'),

@@ -1,7 +1,7 @@
 {
-  "name": "dsh-quota-panel",
-  "description": "Provider quota/balance widget for the dsh web surface: collapsed glanceable capsule expanding into a Harness-native card with a settings panel (provider visibility / refresh interval / warn thresholds), fed by a loopback Connection RPC channel whose host half proxies each provider with credentials that never reach the browser.",
-  "version": "0.1.7-rc.1-v0.1",
+  "name": "dsh-quota-center",
+  "description": "DSH 统一额度中心：ChatGPT 订阅额度、DeepSeek 余额和 OpenCode Go 配额",
+  "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -22,12 +22,12 @@
     "check": "npm run build && npm test"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-connection": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-locale": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-cordis-client-runner": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-credentials": "0.1.7-rc.1",
+    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-cordis-client-runner": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
     "react": "*"
   },
   "peerDependenciesMeta": {
@@ -78,6 +78,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wenzetan/dsh-quota-panel.git"
+    "url": "git+https://github.com/JackGuo0310/dsh-quota-center.git"
   }
 }

@@ -20,7 +20,7 @@ const manifest = (bundles) => JSON.stringify({ dsh: { profile: { bundles } } })
 function seed(path) { return spawnSync(process.execPath, [probe, path], { encoding: 'utf8' }) }
 
 test('seed filters base/web-app/self and preserves third-party order', t => {
-  const f = fixture(t, manifest(['@deepseek-ai/dsh-base', 'superpowers-dsh', 'dsh-quota-panel', '@deepseek-ai/dsh-web-app', '@example/other']))
+  const f = fixture(t, manifest(['@deepseek-ai/dsh-base', 'superpowers-dsh', 'dsh-quota-center', '@deepseek-ai/dsh-web-app', '@example/other']))
   const result = seed(f.manifest)
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stdout, 'superpowers-dsh\n@example/other\n')
@@ -78,10 +78,10 @@ function build(t, content, failRow = '') {
   return { ...result, trace: read(join(f.dir, 'trace')), unrestored: read(join(state, 'preserve-unrestored.txt')), pkg: JSON.parse(read(join(state, 'profiles/web/package.json'))) }
 }
 test('preserve restores names in order, installs self last and registers self', t => {
-  const result = build(t, manifest(['@deepseek-ai/dsh-base', 'one', 'dsh-quota-panel', 'two']))
+  const result = build(t, manifest(['@deepseek-ai/dsh-base', 'one', 'dsh-quota-center', 'two']))
   assert.equal(result.status, 0, result.stdout + result.stderr)
   assert.equal(result.trace, 'one\ntwo\n/test/self.tgz\n')
-  assert.deepEqual(result.pkg.dsh.profile.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-quota-panel'])
+  assert.deepEqual(result.pkg.dsh.profile.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-quota-center'])
   assert.equal(result.unrestored, '')
 })
 test('preserve warns and records failed third-party rows, then installs self', t => {
@@ -103,5 +103,5 @@ test('preserve self install failure is fatal and does not register self', t => {
   const result = build(t, manifest(['one']), '/test/self.tgz')
   assert.equal(result.status, 1)
   assert.equal(result.trace, 'one\n/test/self.tgz\n')
-  assert.ok(!result.pkg.dsh.profile.bundles.includes('dsh-quota-panel'))
+  assert.ok(!result.pkg.dsh.profile.bundles.includes('dsh-quota-center'))
 })

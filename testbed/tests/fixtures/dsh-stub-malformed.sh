@@ -3,4 +3,4 @@
 set -uo pipefail
 printf "%s\n" \
 	'插件清单（非组合树）：' \
-	'  name: dsh-quota-panel'
+	'  name: dsh-quota-center'

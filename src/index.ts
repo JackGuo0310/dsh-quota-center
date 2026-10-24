@@ -1,11 +1,11 @@
 /**
- * dsh-quota-panel — provider quota card for the dsh web surface.
+ * dsh-quota-center — provider quota card for the dsh web surface.
  *
  * Dual-face plugin:
  *
  *  - Host half (compiled from src/index.ts into lib/index.js; zero runtime
  *    dependencies — the schema library is vendored under src/vendor/):
- *    registers one loopback-only Connection RPC channel `/dsh-quota-panel`
+ *    registers one loopback-only Connection RPC channel `/dsh-quota-center`
  *    with two endpoints. API keys are resolved through `ctx.credentials`
  *    and never reach the browser; upstream quota endpoints are called host-side
  *    with `Authorization: Bearer <key>`, optionally through a configured
@@ -29,7 +29,7 @@
  *    catalog row wholesale) and gain formats the catalog cannot guess
  *    (`openai-billing` for one-api/new-api compatible aggregators).
  *
- *  - Client half (`lib/client.js`, served at /plugins/dsh-quota-panel/client.js
+ *  - Client half (`lib/client.js`, served at /plugins/dsh-quota-center/client.js
  *    through the `dsh.client` manifest): a `shell.overlay` slot entry that
  *    renders the collapsed capsule / expanded card / settings panel with
  *    React, talking to this half over `ctx.connection.rpc`.
@@ -71,6 +71,7 @@
  * required because `dsh plugin add link:` installs resolve imports from the
  * repo's real path, which cannot walk up to dsh's bundled packages.
  */
+import { parseChatGPTUsage, parseOpenCodeUsage } from './adapters/subscription.js';
 import crypto from 'node:crypto';
 import { promises as fsp } from 'node:fs';
 import os from 'node:os';
@@ -81,7 +82,7 @@ import net from 'node:net';
 import tls from 'node:tls';
 import z from './vendor/schemastery.mjs';
 
-export const name = 'quota-panel';
+export const name = 'quota-center';
 
 export const inject = ['connection', 'credentials'];
 
@@ -90,7 +91,7 @@ export const inject = ['connection', 'credentials'];
  *
  * DSH mounts every plugin HTTP surface inside the authenticated `/api`
  * channel, whose own route applies the trusted-host + browser-session fence
- * before dispatching. The dedicated prefix `/dsh-quota-panel` this plugin used
+ * before dispatching. The dedicated prefix `/dsh-quota-center` this plugin used
  * before DSH 0.1.5 is no longer reachable: `connection.rpc.handle` mounts its
  * route from the *Connection plugin's* fiber, which never holds `webServer`,
  * so `owner.webServer.register` throws and the channel silently disappears.
@@ -98,16 +99,13 @@ export const inject = ['connection', 'credentials'];
 export const RPC_CHANNEL = '/api';
 
 /** Method namespace owned by this plugin under {@link RPC_CHANNEL}. */
-export const RPC_METHOD_PREFIX = 'dsh-quota-panel';
+export const RPC_METHOD_PREFIX = 'dsh-quota-center';
 
 /** RPC endpoints served by the host half. */
 export const RPC_ENDPOINTS = [
 	'specs',
 	'fetch-all',
-	'chatgpt-auth-status',
-	'chatgpt-login-start',
-	'chatgpt-login-cancel',
-	'chatgpt-logout'
+	
 ] as const;
 
 /** Method name the browser half sends for one endpoint. */
@@ -238,7 +236,7 @@ function volcengineSignedHeaders(ak: string, sk: string, region: string, action:
 //
 //   1. DSH-managed device-code login (no Codex CLI needed): the plugin
 //      runs the same OAuth 2.0 device-authorization flow Codex uses and
-//      persists tokens to $DSH_HOME/dsh-quota-panel/chatgpt-auth.json.
+//      persists tokens to $DSH_HOME/dsh-quota-center/chatgpt-auth.json.
 //      The settings panel has a "Log in to ChatGPT" button that shows a
 //      one-time code + verification URL; the host polls and exchanges
 //      the authorization code (with PKCE) for tokens.
@@ -255,168 +253,6 @@ function volcengineSignedHeaders(ak: string, sk: string, region: string, action:
 // This adapter is explicitly experimental: the endpoint/shape are not
 // a public contract and may drift. Field names are verified against
 // live responses (2026-08) and the openai/codex client.
-const CHATGPT_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
-const CHATGPT_TOKEN_URL = 'https://auth.openai.com/oauth/token';
-const CHATGPT_USERCODE_URL = 'https://auth.openai.com/api/accounts/deviceauth/usercode';
-const CHATGPT_DEVICETOKEN_URL = 'https://auth.openai.com/api/accounts/deviceauth/token';
-const CHATGPT_DEVICE_REDIRECT_URI = 'https://auth.openai.com/deviceauth/callback';
-const CHATGPT_DEVICE_VERIFY_URL = 'https://auth.openai.com/codex/device';
-const CHATGPT_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
-/** Directory containing the Codex auth.json; honors CODEX_HOME like the Codex CLI. */
-function chatgptCodexHome(): string {
-	const override = process.env.CODEX_HOME;
-	return override && override.length > 0 ? override : path.join(os.homedir(), '.codex');
-}
-/** Absolute path to the Codex auth.json. Resolved lazily so tests can steer via CODEX_HOME. */
-function chatgptAuthJsonPath(): string {
-	return path.join(chatgptCodexHome(), 'auth.json');
-}
-
-/**
- * Directory for the DSH-managed ChatGPT token store. Honors DSH_HOME
- * (set by the harness), falling back to ~/.dsh. The file mode is
- * restricted to the current user where the platform supports it.
- */
-function chatgptDshStoreDir(): string {
-	const home = process.env.DSH_HOME;
-	return home && home.length > 0 ? home : path.join(os.homedir(), '.dsh');
-}
-function chatgptDshStorePath(): string {
-	return path.join(chatgptDshStoreDir(), 'dsh-quota-panel', 'chatgpt-auth.json');
-}
-/** Returns true when the Codex auth.json exists (distinct from DSH store). */
-async function codexAuthFileExists(): Promise<boolean> {
-	try {
-		await fsp.access(chatgptAuthJsonPath());
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-/** Returns true when either a DSH-managed token or the Codex auth file exists (row auto-discovery probe). */
-async function chatgptAuthExists(): Promise<boolean> {
-	const dsh = await readChatGPTDshStore();
-	if (dsh) return true;
-	try {
-		await fsp.access(chatgptAuthJsonPath());
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-interface ChatGPTTokenBundle {
-	access_token: string;
-	refresh_token?: string;
-	id_token?: string;
-	account_id?: string;
-	plan_type?: string;
-	/** epoch ms when the access token expires (if known). */
-	expires_at_ms?: number;
-}
-
-/** In-memory token cache; refreshed on expiry or on auth failure. */
-let chatgptTokenCache: { bundle: ChatGPTTokenBundle } | null = null;
-
-async function readChatGPTAuthFile(): Promise<ChatGPTTokenBundle> {
-	const authJson = chatgptAuthJsonPath();
-	let raw: string;
-	try {
-		raw = await fsp.readFile(authJson, 'utf8');
-	} catch (err) {
-		throw new Error(`ChatGPT: cannot read ${authJson} (run "codex login" first): ${(err as Error).message}`);
-	}
-	let parsed: any;
-	try {
-		parsed = JSON.parse(raw);
-	} catch {
-		throw new Error(`ChatGPT: ${authJson} is not valid JSON`);
-	}
-	const tokens = parsed?.tokens;
-	if (!tokens || typeof tokens !== 'object' || typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
-		throw new Error(`ChatGPT: ${authJson} has no tokens.access_token (run "codex login")`);
-	}
-	let expires_at_ms: number | undefined;
-	if (typeof tokens.expires_at === 'number' && Number.isFinite(tokens.expires_at) && tokens.expires_at > 0) {
-		// Codex writes epoch seconds; tolerate ms.
-		expires_at_ms = tokens.expires_at > 1e12 ? tokens.expires_at : tokens.expires_at * 1000;
-	}
-	return {
-		access_token: tokens.access_token,
-		refresh_token: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : undefined,
-		id_token: typeof tokens.id_token === 'string' ? tokens.id_token : undefined,
-		account_id: typeof tokens.account_id === 'string' ? tokens.account_id : undefined,
-		expires_at_ms
-	};
-}
-
-/**
- * Read the DSH-managed ChatGPT token store (written by the in-plugin
- * device-code login). Shape: { source:'dsh', account_id?, plan_type?,
- * tokens:{access_token,refresh_token,id_token,expires_at_ms} }.
- * Returns null (not throws) when absent/unreadable so the caller can
- * fall through to the Codex auth.json source.
- */
-async function readChatGPTDshStore(): Promise<(ChatGPTTokenBundle & { source: 'dsh'; plan_type?: string }) | null> {
-	const file = chatgptDshStorePath();
-	let raw: string;
-	try {
-		raw = await fsp.readFile(file, 'utf8');
-	} catch {
-		return null;
-	}
-	let parsed: any;
-	try {
-		parsed = JSON.parse(raw);
-	} catch {
-		return null;
-	}
-	const t = parsed?.tokens;
-	if (!t || typeof t.access_token !== 'string' || t.access_token.length === 0) return null;
-	return {
-		source: 'dsh',
-		access_token: t.access_token,
-		refresh_token: typeof t.refresh_token === 'string' ? t.refresh_token : undefined,
-		id_token: typeof t.id_token === 'string' ? t.id_token : undefined,
-		account_id: typeof parsed.account_id === 'string' ? parsed.account_id : undefined,
-		plan_type: typeof parsed.plan_type === 'string' ? parsed.plan_type : undefined,
-		expires_at_ms: typeof t.expires_at_ms === 'number' ? t.expires_at_ms : undefined
-	};
-}
-
-/** Atomically persist a token bundle to the DSH-managed store (0600 perms). */
-async function writeChatGPTDshStore(bundle: ChatGPTTokenBundle & { plan_type?: string }): Promise<void> {
-	const file = chatgptDshStorePath();
-	await fsp.mkdir(path.dirname(file), { recursive: true });
-	const payload = JSON.stringify({
-		source: 'dsh',
-		account_id: bundle.account_id,
-		plan_type: bundle.plan_type,
-		tokens: {
-			access_token: bundle.access_token,
-			refresh_token: bundle.refresh_token,
-			id_token: bundle.id_token,
-			expires_at_ms: bundle.expires_at_ms
-		}
-	}, null, 2);
-	await fsp.writeFile(file, payload, { encoding: 'utf8', mode: 0o600 });
-}
-
-async function deleteChatGPTDshStore(): Promise<void> {
-	try {
-		await fsp.unlink(chatgptDshStorePath());
-	} catch {
-		// already absent
-	}
-	chatgptTokenCache = null;
-}
-
-/**
- * Call one Volcengine Ark OpenAPI action (POST with empty body, signed).
- * Volcengine returns business errors as 200 + ResponseMetadata.Error, so
- * those are surfaced as thrown errors with the upstream code.
- */
 async function volcengineCall(action: string, region: string, ak: string, sk: string, timeoutMs: number): Promise<any> {
 	const canonicalQuery = volcCanonicalQuery(action, region);
 	const url = `https://${VOLCENGINE_HOST}/?${canonicalQuery}`;
@@ -443,278 +279,59 @@ async function volcengineCall(action: string, region: string, ak: string, sk: st
 	return body;
 }
 
-/**
- * Extract a human-readable error string from an OAuth/API error body.
- * OpenAI's auth endpoints return a NESTED error object
- * ({error:{code,message,type}}) while the token endpoints use flat
- * OAuth2 fields (error/error_description) — handle both, never render a
- * raw object (which stringifies to "[object Object]").
- */
-function chatgptErrorText(json: any, fallback: string): string {
-	if (typeof json?.error_description === 'string' && json.error_description) return json.error_description;
-	const err = json?.error;
-	if (typeof err === 'string' && err) return err;
-	if (err && typeof err === 'object') {
-		const msg = typeof err.message === 'string' && err.message ? err.message : '';
-		const code = typeof err.code === 'string' && err.code ? err.code : '';
-		if (msg && code) return `${msg} (${code})`;
-		if (msg) return msg;
-		if (code) return code;
-	}
-	if (typeof json?.detail === 'string' && json.detail) return json.detail;
-	return fallback;
+
+const CHATGPT_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
+// Read-only Codex credentials. This plugin never logs in, refreshes, or writes tokens.
+function chatgptAuthJsonPath(): string {
+    return path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'auth.json');
 }
-
-/**
- * Exchange a refresh_token for a fresh access token at the OpenAI OAuth
- * endpoint. Form-urlencoded as required by the OAuth2 token endpoint.
- */
-async function refreshChatGPTToken(refreshToken: string, timeoutMs: number, proxyUrl?: string): Promise<ChatGPTTokenBundle> {
-	const body = new URLSearchParams({
-		grant_type: 'refresh_token',
-		refresh_token: refreshToken,
-		client_id: CHATGPT_CLIENT_ID
-	}).toString();
-	const res = await getJson(CHATGPT_TOKEN_URL, {
-		'Content-Type': 'application/x-www-form-urlencoded'
-	}, proxyUrl, timeoutMs, 'POST', body);
-	const json: any = await res.json().catch(() => null);
-	if (!res.ok || json === null) {
-		throw new Error(`ChatGPT token refresh failed: ${chatgptErrorText(json, `HTTP ${res.status}`)}`);
-	}
-	if (typeof json.access_token !== 'string' || json.access_token.length === 0) {
-		throw new Error('ChatGPT token refresh response missing access_token');
-	}
-	const expiresIn = Number(json.expires_in);
-	return {
-		access_token: json.access_token,
-		refresh_token: typeof json.refresh_token === 'string' ? json.refresh_token : refreshToken,
-		id_token: typeof json.id_token === 'string' ? json.id_token : undefined,
-		expires_at_ms: Number.isFinite(expiresIn) && expiresIn > 0 ? Date.now() + expiresIn * 1000 : undefined
-	};
+async function chatgptAuthExists(): Promise<boolean> {
+    try { await fsp.access(chatgptAuthJsonPath()); return true; } catch { return false; }
 }
-
-/** PKCE verifier (high-entropy random string) and S256 challenge. */
-function chatgptPkce(): { verifier: string; challenge: string } {
-	const verifier = crypto.randomBytes(48).toString('base64url');
-	const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
-	return { verifier, challenge };
+interface ChatGPTTokenBundle {
+    access_token: string; account_id?: string; expires_at_ms?: number;
+    refresh_token?: string; id_token?: string;
 }
-
-/**
- * In-flight device-code login. The host drives the OAuth device-authorization
- * flow: it requests a one-time user code, the UI shows it with the
- * verification URL, and the host polls until the user authorizes (or it
- * times out / is cancelled). `abort` is set when the user cancels so the
- * polling loop terminates and the next start can replace it.
- */
-let chatgptLogin: {
-	startedAt: number;
-	verificationUrl: string;
-	userCode: string;
-	intervalMs: number;
-	expiresAt: number;
-	abort: boolean;
-} | null = null;
-/**
- * Terminal error of the last in-flight device login (timeout / denied /
- * expired), recorded instead of thrown: the poll promise is deliberately
- * fire-and-forget, and an unhandled rejection would kill the whole DSH
- * host process under Node's default --unhandled-rejections=throw.
- * Surfaced to the UI via chatgpt-auth-status and cleared on a new start.
- */
-let chatgptLoginError: string | null = null;
-
-/** Step 1: request a one-time code from the device-authorization endpoint. */
-async function chatgptDeviceStart(timeoutMs: number, proxyUrl?: string): Promise<{ verificationUrl: string; userCode: string; intervalMs: number; expiresAt: number }> {
-	const res = await getJson(CHATGPT_USERCODE_URL, {
-		'Content-Type': 'application/json',
-		'Accept': 'application/json'
-	}, proxyUrl, timeoutMs, 'POST', JSON.stringify({ client_id: CHATGPT_CLIENT_ID }));
-	const json: any = await res.json().catch(() => null);
-	if (!res.ok || json === null) {
-		throw new Error(`ChatGPT device code request failed: ${chatgptErrorText(json, `HTTP ${res.status}`)}`);
-	}
-	const userCode = json.user_code ?? json.usercode;
-	const deviceAuthId = json.device_auth_id;
-	if (typeof userCode !== 'string' || !userCode || typeof deviceAuthId !== 'string') {
-		throw new Error('ChatGPT device code response missing user_code / device_auth_id');
-	}
-	const intervalSec = Number(json.interval);
-	const intervalMs = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec * 1000 : 5000;
-	// The one-time code expires in 15 minutes (per Codex's device flow).
-	const expiresAt = Date.now() + 15 * 60 * 1000;
-	chatgptLoginError = null;
-	chatgptLogin = {
-		startedAt: Date.now(),
-		verificationUrl: CHATGPT_DEVICE_VERIFY_URL,
-		userCode,
-		intervalMs,
-		expiresAt,
-		abort: false
-	};
-	// Fire-and-forget: the poll records terminal failures in
-	// chatgptLoginError (never throws into an unhandled rejection — that
-	// would crash the host process); the catch is belt-and-braces.
-	void chatgptDevicePoll(deviceAuthId, userCode, intervalMs, proxyUrl).catch((e) => {
-		chatgptLoginError = String((e as Error)?.message || e);
-	});
-	return { verificationUrl: CHATGPT_DEVICE_VERIFY_URL, userCode, intervalMs, expiresAt };
-}
-
-/**
- * Step 2: poll the device token endpoint until the user authorizes. On
- * success the response carries an authorization_code plus PKCE codes; we
- * then exchange the code for tokens and persist them to the DSH store.
- * Errors (pending/denied/expired) are swallowed here and surfaced to the
- * UI via chatgptLoginStatus().
- */
-async function chatgptDevicePoll(deviceAuthId: string, userCode: string, initialIntervalMs: number, proxyUrl?: string): Promise<void> {
-	const deadline = Date.now() + 15 * 60 * 1000;
-	let intervalMs = initialIntervalMs;
-	let lastError: string | undefined;
-	while (Date.now() < deadline) {
-		if (chatgptLogin?.abort || chatgptLogin?.userCode !== userCode) return;
-		await new Promise((r) => setTimeout(r, intervalMs));
-		if (chatgptLogin?.abort || chatgptLogin?.userCode !== userCode) return;
-		try {
-			const res = await getJson(CHATGPT_DEVICETOKEN_URL, {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json'
-			}, proxyUrl, UPSTREAM_TIMEOUT_MS, 'POST', JSON.stringify({ device_auth_id: deviceAuthId, user_code: userCode }));
-			const json: any = await res.json().catch(() => null);
-			if (!json) continue;
-			if (json.authorization_code) {
-				const verifier = typeof json.code_verifier === 'string' && json.code_verifier
-					? json.code_verifier
-					: chatgptPkce().verifier;
-				const tokens = await chatgptExchangeCode(String(json.authorization_code), verifier, UPSTREAM_TIMEOUT_MS, proxyUrl);
-				await writeChatGPTDshStore(tokens);
-				chatgptTokenCache = { bundle: tokens };
-				chatgptLogin = null;
-				chatgptLoginError = null;
-				return;
-			}
-			// authorization_pending / slow_down / access_denied / expired_token
-			lastError = json.error_description || json.error || lastError;
-			if (json.error === 'access_denied' || json.error === 'expired_token') break;
-			if (json.error === 'slow_down' && intervalMs < 15000) {
-				intervalMs = Math.min(15000, intervalMs + 5000);
-			}
-		} catch (e) {
-			lastError = String((e as Error)?.message || e);
-		}
-	}
-	chatgptLogin = null;
-	// Record (do NOT throw): nothing awaits this promise, and an unhandled
-	// rejection crashes the DSH host process (Node's default policy).
-	chatgptLoginError = lastError ? `ChatGPT login failed: ${lastError}` : 'ChatGPT login timed out';
-}
-
-/** Step 3: exchange an authorization_code (with PKCE) for a token bundle. */
-async function chatgptExchangeCode(code: string, codeVerifier: string, timeoutMs = UPSTREAM_TIMEOUT_MS, proxyUrl?: string): Promise<ChatGPTTokenBundle> {
-	const body = new URLSearchParams({
-		grant_type: 'authorization_code',
-		code,
-		redirect_uri: CHATGPT_DEVICE_REDIRECT_URI,
-		client_id: CHATGPT_CLIENT_ID,
-		code_verifier: codeVerifier
-	}).toString();
-	const res = await getJson(CHATGPT_TOKEN_URL, {
-		'Content-Type': 'application/x-www-form-urlencoded'
-	}, proxyUrl, timeoutMs, 'POST', body);
-	const json: any = await res.json().catch(() => null);
-	if (!res.ok || json === null) {
-		throw new Error(`ChatGPT token exchange failed: ${chatgptErrorText(json, `HTTP ${res.status}`)}`);
-	}
-	if (typeof json.access_token !== 'string' || json.access_token.length === 0) {
-		throw new Error('ChatGPT token exchange response missing access_token');
-	}
-	const expiresIn = Number(json.expires_in);
-	let account_id: string | undefined;
-	let plan_type: string | undefined;
-	if (typeof json.id_token === 'string') {
-		const claims = chatgptDecodeIdToken(json.id_token);
-		account_id = claims.account_id;
-		plan_type = claims.plan_type;
-	}
-	return {
-		access_token: json.access_token,
-		refresh_token: typeof json.refresh_token === 'string' ? json.refresh_token : undefined,
-		id_token: typeof json.id_token === 'string' ? json.id_token : undefined,
-		account_id,
-		plan_type,
-		expires_at_ms: Number.isFinite(expiresIn) && expiresIn > 0 ? Date.now() + expiresIn * 1000 : undefined
-	} as ChatGPTTokenBundle;
-}
-
-/** Decode (without verifying) the id_token JWT payload for account/plan hints. */
-function chatgptDecodeIdToken(idToken: string): { account_id?: string; plan_type?: string } {
+async function readChatGPTAuthFile(): Promise<ChatGPTTokenBundle> {
+	const authJson = chatgptAuthJsonPath();
+	let raw: string;
 	try {
-		const part = idToken.split('.')[1];
-		if (!part) return {};
-		const json = JSON.parse(Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
-		const ns = json?.['https://api.openai.com/auth'];
-		return {
-			account_id: typeof json?.account_id === 'string' ? json.account_id : (typeof ns?.user_id === 'string' ? ns.user_id : undefined),
-			plan_type: typeof json?.plan_type === 'string' ? json.plan_type : (typeof ns?.plan_type === 'string' ? ns.plan_type : undefined)
-		};
-	} catch {
-		return {};
+		raw = await fsp.readFile(authJson, 'utf8');
+	} catch (err) {
+		throw new Error(`ChatGPT: cannot read ${authJson} (run "codex login" first): ${(err as Error).message}`);
 	}
-}
-
-/** Snapshot of the current in-flight login for the settings UI to render. */
-function chatgptLoginStatus(): { active: boolean; verificationUrl?: string; userCode?: string; expiresAt?: number; error?: string | null } {
-	if (!chatgptLogin || chatgptLogin.abort) return { active: false, error: chatgptLoginError };
+	let parsed: any;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		throw new Error(`ChatGPT: ${authJson} is not valid JSON`);
+	}
+	const tokens = parsed?.tokens;
+	if (!tokens || typeof tokens !== 'object' || typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+		throw new Error(`ChatGPT: ${authJson} has no tokens.access_token (run "codex login")`);
+	}
+	let expires_at_ms: number | undefined;
+    try { const claims = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64url').toString());
+        if (typeof claims.exp === 'number') expires_at_ms = claims.exp * 1000;
+    } catch {}
+	if (typeof tokens.expires_at === 'number' && Number.isFinite(tokens.expires_at) && tokens.expires_at > 0) {
+		// Codex writes epoch seconds; tolerate ms.
+		expires_at_ms = tokens.expires_at > 1e12 ? tokens.expires_at : tokens.expires_at * 1000;
+	}
 	return {
-		active: true,
-		verificationUrl: chatgptLogin.verificationUrl,
-		userCode: chatgptLogin.userCode,
-		expiresAt: chatgptLogin.expiresAt
+		access_token: tokens.access_token,
+		refresh_token: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : undefined,
+		id_token: typeof tokens.id_token === 'string' ? tokens.id_token : undefined,
+		account_id: typeof tokens.account_id === 'string' ? tokens.account_id : undefined,
+		expires_at_ms
 	};
 }
 
-/**
- * Resolve a usable access token. Order:
- *   1. in-memory cache while fresh
- *   2. DSH-managed store (device-code login) — refreshed and written back
- *   3. ~/.codex/auth.json (Codex CLI login) — refreshed in memory only
- */
-async function resolveChatGPTToken(timeoutMs: number, proxyUrl?: string): Promise<{ accessToken: string; accountId?: string }> {
-	const now = Date.now();
-	const cached = chatgptTokenCache?.bundle;
-	if (cached && cached.access_token && (!cached.expires_at_ms || cached.expires_at_ms - now > 30_000)) {
-		return { accessToken: cached.access_token, accountId: cached.account_id };
-	}
-	// Source 1: DSH-managed device login (preferred).
-	const dsh = await readChatGPTDshStore();
-	if (dsh && dsh.access_token) {
-		if (!dsh.expires_at_ms || dsh.expires_at_ms - now > 30_000) {
-			chatgptTokenCache = { bundle: dsh };
-			return { accessToken: dsh.access_token, accountId: dsh.account_id };
-		}
-		if (dsh.refresh_token) {
-			const refreshed = await refreshChatGPTToken(dsh.refresh_token, timeoutMs, proxyUrl);
-			if (!refreshed.account_id) refreshed.account_id = dsh.account_id;
-			await writeChatGPTDshStore(refreshed).catch(() => {});
-			chatgptTokenCache = { bundle: refreshed };
-			return { accessToken: refreshed.access_token, accountId: refreshed.account_id };
-		}
-	}
-	// Source 2: Codex CLI auth.json fallback.
-	const fromDisk = await readChatGPTAuthFile();
-	if (!fromDisk.expires_at_ms || fromDisk.expires_at_ms - now > 30_000) {
-		chatgptTokenCache = { bundle: fromDisk };
-		return { accessToken: fromDisk.access_token, accountId: fromDisk.account_id };
-	}
-	if (!fromDisk.refresh_token) {
-		throw new Error('ChatGPT: access token expired and no refresh_token — log in again');
-	}
-	const refreshed = await refreshChatGPTToken(fromDisk.refresh_token, timeoutMs, proxyUrl);
-	if (!refreshed.account_id) refreshed.account_id = fromDisk.account_id;
-	chatgptTokenCache = { bundle: refreshed };
-	return { accessToken: refreshed.access_token, accountId: refreshed.account_id };
+async function resolveChatGPTToken() {
+    const bundle = await readChatGPTAuthFile();
+    if (bundle.expires_at_ms && bundle.expires_at_ms <= Date.now() + 30000)
+        throw new Error('ChatGPT: Codex 登录已过期，请在 Codex 重新登录');
+    return { accessToken: bundle.access_token, accountId: bundle.account_id };
 }
 
 /**
@@ -730,7 +347,7 @@ async function fetchChatGPTUsage(accessToken: string, accountId: string | undefi
 	const res = await getJson(CHATGPT_USAGE_URL, headers, proxyUrl, timeoutMs);
 	const body: any = await res.json().catch(() => null);
 	if (res.status === 401) {
-		const err: any = new Error('ChatGPT: access token rejected (401)');
+		const err: any = new Error('ChatGPT: Codex 登录失效（401），请在 Codex 重新登录');
 		err.code = 'chatgpt-auth';
 		throw err;
 	}
@@ -750,66 +367,6 @@ async function fetchChatGPTUsage(accessToken: string, accountId: string | undefi
  * (primary = 5h, secondary = weekly) only when the duration is missing
  * or unrecognized (issue #7).
  */
-function parseChatGPTUsage(body: any): { kind: 'usage'; windows: Record<string, any>; title: string } | null {
-	const rl = body?.rate_limit;
-	if (!rl || typeof rl !== 'object') return null;
-	const toIso = (epochSec: unknown) => {
-		const n = Number(epochSec);
-		if (!Number.isFinite(n) || n <= 0) return undefined;
-		return new Date(n > 1e12 ? n : n * 1000).toISOString();
-	};
-	const mapWindow = (w: any) => {
-		if (!w || typeof w !== 'object') return null;
-		const pct = Number(w.used_percent);
-		if (!Number.isFinite(pct)) return null;
-		return {
-			percent: Math.min(100, Math.max(0, Math.round(pct))),
-			resetsAt: toIso(w.reset_at)
-		};
-	};
-	const windowLane = (seconds: unknown): 'rolling' | 'weekly' | null => {
-		const n = Number(seconds);
-		if (!Number.isFinite(n) || n <= 0) return null;
-		const near = (target: number) => n >= target * 0.95 && n <= target * 1.05;
-		if (near(5 * 3600)) return 'rolling';
-		if (near(7 * 24 * 3600)) return 'weekly';
-		return null;
-	};
-	const placed: Array<{ win: { percent: number; resetsAt?: string }; lane: 'rolling' | 'weekly' }> = [];
-	const place = (raw: any, fallback: 'rolling' | 'weekly') => {
-		const win = mapWindow(raw);
-		if (win) placed.push({ win, lane: windowLane(raw?.limit_window_seconds) ?? fallback });
-	};
-	place(rl.primary_window, 'rolling');
-	place(rl.secondary_window, 'weekly');
-	if (placed.length === 2 && placed[0].lane === placed[1].lane) {
-		// Both windows resolved to the same lane: when exactly one carried a
-		// recognizable duration that evidence wins and the other window takes
-		// the remaining lane; otherwise use the typical positional layout.
-		const knownPrimary = windowLane(rl.primary_window?.limit_window_seconds);
-		const knownSecondary = windowLane(rl.secondary_window?.limit_window_seconds);
-		if (knownPrimary && !knownSecondary) {
-			placed[0].lane = knownPrimary;
-			placed[1].lane = knownPrimary === 'rolling' ? 'weekly' : 'rolling';
-		} else if (knownSecondary && !knownPrimary) {
-			placed[1].lane = knownSecondary;
-			placed[0].lane = knownSecondary === 'rolling' ? 'weekly' : 'rolling';
-		} else {
-			placed[0].lane = 'rolling';
-			placed[1].lane = 'weekly';
-		}
-	}
-	const windows: Record<string, any> = {};
-	for (const { win, lane } of placed) windows[lane] = win;
-	if (Object.keys(windows).length === 0) return null;
-	const plan = typeof body?.plan_type === 'string' && body.plan_type ? body.plan_type : 'subscription';
-	const titleParts = [
-		`plan: ${plan}`,
-		windows.rolling ? `5h: ${windows.rolling.percent}%` : null,
-		windows.weekly ? `weekly: ${windows.weekly.percent}%` : null
-	].filter(Boolean);
-	return { kind: 'usage', windows, title: titleParts.join('\n') };
-}
 
 /**
  * Normalized row views an adapter may produce. The browser half renders
@@ -893,10 +450,10 @@ const CATALOG_OVERRIDE_KEYS = ['label', 'endpoint', 'format', 'proxy', 'refs', '
  */
 const FORMATS = {
 	'deepseek-balance': (body) => {
-		const info = body?.balance_infos?.[0];
+		const info = body?.balance_infos?.find((entry) => entry.currency === 'CNY');
 		const amount = Number(info?.total_balance);
 		if (!Number.isFinite(amount)) throw new Error('missing balance_infos[0].total_balance');
-		return { kind: 'balance', amount, title: `currency: ${info.currency}\ngranted: ¥${info.granted_balance}\ntopped-up: ¥${info.topped_up_balance}` };
+		return { kind: 'balance', amount, toppedUp: info.topped_up_balance, granted: info.granted_balance, title: `currency: ${info.currency}\ngranted: ¥${info.granted_balance}\ntopped-up: ¥${info.topped_up_balance}` };
 	},
 	'openrouter-credits': (body) => {
 		const credits = Number(body?.data?.total_credits);
@@ -987,15 +544,7 @@ const FORMATS = {
 		}).join(' · ');
 		return { kind: 'info', text, title: '配额剩余/总数（智谱无公开余额接口）' };
 	},
-	'opencode-usage': (body) => {
-		const u = body?.usage;
-		const pick = (key) => {
-			const percent = Number(u?.[key]?.percent);
-			if (!Number.isFinite(percent)) throw new Error(`missing usage.${key}.percent`);
-			return { percent, resetsAt: u[key].resetsAt };
-		};
-		return { kind: 'usage', windows: { rolling: pick('rolling'), weekly: pick('weekly'), monthly: pick('monthly') } };
-	},
+	'opencode-usage': parseOpenCodeUsage,
 	'zai-coding-quota': (body) => {
 		if (body?.code !== 200) throw new Error(`upstream code ${body?.code}: ${body?.msg ?? 'unknown'}`);
 		const limits = Array.isArray(body?.data?.limits) ? body.data.limits : [];
@@ -1161,7 +710,7 @@ export const Config = z.object({
 	providers: z.array(z.object({
 		id: z.string().pattern(PROVIDER_ID_PATTERN).required(),
 		label: z.string().required(),
-		credential: z.string().role('credential-ref').required(),
+		credential: z.string().role('credential-ref'),
 		secretCredential: z.string().role('credential-ref'),
 		region: z.string(),
 		localAuth: z.union([z.const('codex')]),
@@ -1229,6 +778,7 @@ function validateProviders(raw) {
 		if (seen.has(entry.id)) throw new Error(`${at}.id duplicates "${entry.id}"`);
 		seen.add(entry.id);
 		const format = entry.format ?? 'deepseek-balance';
+		if (format !== 'chatgpt-subscription' && !entry.credential) throw new Error(`${at}.credential is required`);
 		const meta = FORMAT_META[format];
 		if (!meta) throw new Error(`${at}.format "${format}" is unknown`);
 		if (entry.proxy !== undefined && !(entry.proxy in raw.proxies)) {
@@ -1650,22 +1200,8 @@ async function fetchRow(ctx, provider, proxies, clientProxyUrl) {
 				const cgProxy = clientProxyUrl !== undefined
 					? clientProxyUrl
 					: (provider.proxy !== undefined ? proxies[provider.proxy] : undefined);
-				let { accessToken, accountId } = await resolveChatGPTToken(UPSTREAM_TIMEOUT_MS, cgProxy);
-				let body: any;
-				try {
-					body = await fetchChatGPTUsage(accessToken, accountId, UPSTREAM_TIMEOUT_MS, cgProxy);
-				} catch (e) {
-					if ((e as any)?.code === 'chatgpt-auth') {
-						// Drop the cached token and refresh once.
-						chatgptTokenCache = null;
-						const refreshed = await resolveChatGPTToken(UPSTREAM_TIMEOUT_MS, cgProxy);
-						accessToken = refreshed.accessToken;
-						accountId = refreshed.accountId;
-						body = await fetchChatGPTUsage(accessToken, accountId, UPSTREAM_TIMEOUT_MS, cgProxy);
-					} else {
-						throw e;
-					}
-				}
+                const { accessToken, accountId } = await resolveChatGPTToken();
+                const body = await fetchChatGPTUsage(accessToken, accountId, UPSTREAM_TIMEOUT_MS, cgProxy);
 				const view = parseChatGPTUsage(body);
 				if (!view) {
 					return { id: provider.id, error: 'ChatGPT: no rate_limit data in usage response' };
@@ -1842,52 +1378,6 @@ export function apply(ctx, config: Record<string, any> = {}) {
 
 	const handleRpc = async (endpoint: string, payload: any, _signal?: AbortSignal) => {
 		try {
-			// ── ChatGPT subscription auth (device-code login) ──────
-			// These endpoints drive the in-plugin device-authorization
-			// flow so users without Codex CLI can still log in. No
-			// secrets leave the host.
-			if (endpoint === 'chatgpt-auth-status') {
-				const dsh = await readChatGPTDshStore();
-				return {
-					ok: true,
-					value: {
-						loggedIn: !!(dsh?.access_token) || await chatgptAuthExists(),
-						source: dsh ? 'dsh' : (await codexAuthFileExists() ? 'codex' : null),
-						account_id: dsh?.account_id,
-						plan_type: dsh?.plan_type,
-						login: chatgptLoginStatus()
-					}
-				};
-			}
-			if (endpoint === 'chatgpt-login-start') {
-				// Optional per-login proxy (settings panel): the whole device
-				// flow (usercode → poll → exchange) goes through it — the
-				// user may need it to reach auth.openai.com at all.
-				let loginProxy: string | undefined;
-				const rawProxy = payload && typeof payload === 'object' && typeof payload.proxy === 'string' ? payload.proxy.trim() : '';
-				if (rawProxy) {
-					try {
-						parseHttpProxyUrl(rawProxy);
-						loginProxy = rawProxy;
-					} catch (error) {
-						return { ok: false, error: { code: 'invalid-proxy', message: `proxy "${rawProxy}": ${error instanceof Error ? error.message : 'is not a valid URL'}`, details: {} } };
-					}
-				}
-				// Cancel any in-flight login, then start a fresh one.
-				if (chatgptLogin) chatgptLogin.abort = true;
-				const info = await chatgptDeviceStart(UPSTREAM_TIMEOUT_MS, loginProxy);
-				return { ok: true, value: info };
-			}
-			if (endpoint === 'chatgpt-login-cancel') {
-				if (chatgptLogin) chatgptLogin.abort = true;
-				chatgptLogin = null;
-				chatgptLoginError = null; // user-initiated cancel is not an error
-				return { ok: true, value: { cancelled: true } };
-			}
-			if (endpoint === 'chatgpt-logout') {
-				await deleteChatGPTDshStore();
-				return { ok: true, value: { loggedOut: true } };
-			}
 			const rows = await resolveRows(ctx, {
 				auto: raw.auto !== false,
 				hide: Array.isArray(raw.hide) ? raw.hide : [],
@@ -1911,7 +1401,7 @@ export function apply(ctx, config: Record<string, any> = {}) {
 						overrideErrors[id] = `client proxy "${url}": ${error instanceof Error ? error.message : 'is not a valid URL'}`;
 					}
 				}
-				const fetched = await Promise.all(rows.map(async (provider) => {
+				const fetched = await Promise.all(rows.filter((row) => !Array.isArray(payload?.hidden) || !payload.hidden.includes(row.id)).map(async (provider) => {
 					if (overrideErrors[provider.id] !== undefined) {
 						return { id: provider.id, error: overrideErrors[provider.id] };
 					}

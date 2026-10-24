@@ -27,13 +27,13 @@ function validateContract(contract) {
     fail('combo contract must contain self and peer objects')
   }
   const expected = [
-    [contract.self.package?.name, 'dsh-quota-panel'],
+    [contract.self.package?.name, 'dsh-quota-center'],
     [contract.self.package?.version, '0.9.2-rc.4'],
-    [contract.self.clientId, 'dsh-quota-panel'],
-    [contract.self.rpc?.route, '/api/dsh-quota-panel/specs'],
+    [contract.self.clientId, 'dsh-quota-center'],
+    [contract.self.rpc?.route, '/api/dsh-quota-center/specs'],
     [contract.self.rpc?.request?.type, 'client-request'],
     [contract.self.rpc?.request?.rpcId, 'combo-self'],
-    [contract.self.rpc?.request?.method, 'dsh-quota-panel/specs'],
+    [contract.self.rpc?.request?.method, 'dsh-quota-center/specs'],
     [contract.self.rpc?.expect?.type, 'server-response'],
     [contract.self.rpc?.expect?.rpcId, 'combo-self'],
     [contract.self.rpc?.expect?.result?.ok, true],
@@ -74,14 +74,14 @@ function validateContract(contract) {
 
 export const COMBO_CONTRACT = deepFreeze(validateContract({
   self: {
-    package: { name: 'dsh-quota-panel', version: '0.9.2-rc.4' },
-    clientId: 'dsh-quota-panel',
+    package: { name: 'dsh-quota-center', version: '0.9.2-rc.4' },
+    clientId: 'dsh-quota-center',
     rpc: {
-      route: '/api/dsh-quota-panel/specs',
+      route: '/api/dsh-quota-center/specs',
       request: {
         type: 'client-request',
         rpcId: 'combo-self',
-        method: 'dsh-quota-panel/specs',
+        method: 'dsh-quota-center/specs',
         payload: null,
       },
       expect: {

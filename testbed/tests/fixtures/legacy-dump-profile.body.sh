@@ -13,12 +13,12 @@ dump_profile() {
 	local rc=$?
 	set -e
 	[ "$rc" -eq 0 ] || die "dsh --dump-config 失败，见 $dump"
-	if grep -q "dsh-quota-panel" "$dump"; then
+	if grep -q "dsh-quota-center" "$dump"; then
 		:
 	else
-		die "组合树中没有 dsh-quota-panel 行（patch 层未生效）"
+		die "组合树中没有 dsh-quota-center 行（patch 层未生效）"
 	fi
-	log profile "装配断言通过：组合树包含 dsh-quota-panel"
+	log profile "装配断言通过：组合树包含 dsh-quota-center"
 }
 LEGACY
 printf 'main () { :; }\n'

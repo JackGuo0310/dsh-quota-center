@@ -154,7 +154,7 @@ case "$method_rc" in
 	124) die "全流程截止时间耗尽（读取 specs method）" ;;
 	*) die "动态 specs method 无效" ;;
 esac
-[ "$ROUTE" = '/api/dsh-quota-panel/specs' ] && [ "$METHOD" = 'dsh-quota-panel/specs' ] \
+[ "$ROUTE" = '/api/dsh-quota-center/specs' ] && [ "$METHOD" = 'dsh-quota-center/specs' ] \
 	|| die "动态 specs contract 不符"
 say "动态 specs 契约已加载"
 

@@ -6,10 +6,10 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9334;
-const USER_DATA = 'D:/deepseek/dsh-quota-panel/.chrome-verify';
+const USER_DATA = 'D:/deepseek/dsh-quota-center/.chrome-verify';
 const url = process.argv[2] === 'dark'
-	? 'file:///D:/deepseek/dsh-quota-panel/docs/demo-dark.html'
-	: 'file:///D:/deepseek/dsh-quota-panel/docs/demo.html';
+	? 'file:///D:/deepseek/dsh-quota-center/docs/demo-dark.html'
+	: 'file:///D:/deepseek/dsh-quota-center/docs/demo.html';
 
 await rm(USER_DATA, { recursive: true, force: true });
 await mkdir(USER_DATA, { recursive: true });

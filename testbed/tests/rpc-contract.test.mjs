@@ -64,8 +64,8 @@ const usage = {
 test('dynamicContract derives the specs contract without exposing module exports', async () => {
   const contract = await dynamicContract(pluginDir)
   assert.deepEqual(contract, {
-    route: '/api/dsh-quota-panel/specs',
-    method: 'dsh-quota-panel/specs',
+    route: '/api/dsh-quota-center/specs',
+    method: 'dsh-quota-center/specs',
     endpoints: [
       'specs',
       'fetch-all',
@@ -195,7 +195,7 @@ for (const [name, assignment] of [
   test(`bootPayloadFromHtml returns the parsed object from a real ${name} assignment`, () => {
     const payload = {
       rev: `graph-${name}`,
-      plugins: [{ id: 'dsh-quota-panel', url: `/plugins/??dsh-quota-panel/client.js&rev=${name}` }],
+      plugins: [{ id: 'dsh-quota-center', url: `/plugins/??dsh-quota-center/client.js&rev=${name}` }],
     }
     const html = `<script>${assignment} = ${JSON.stringify(payload)};</script>`
 
@@ -226,34 +226,34 @@ for (const [name, html, secret] of [
 }
 
 test('clientUrlFromBootHtml extracts the revisioned quota client URL and decodes ampersands', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"other","url":"/plugins/??other/client.js&amp;rev=1"},{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&amp;rev=quota-42"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"other","url":"/plugins/??other/client.js&amp;rev=1"},{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&amp;rev=quota-42"}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/??dsh-quota-panel/client.js&rev=quota-42',
+    '/plugins/??dsh-quota-center/client.js&rev=quota-42',
   )
 })
 
 test('clientUrlFromBootHtml parses the real DSH globalThis bracket boot assignment', () => {
-  const html = '<script>globalThis["__DSH_BOOT__"] = {"rev":"graph-1","plugins":[{"url":"/plugins/??dsh-quota-panel/client.js&rev=quota-real","platform":"web","enabled":true,"id":"dsh-quota-panel"}]}</script>'
+  const html = '<script>globalThis["__DSH_BOOT__"] = {"rev":"graph-1","plugins":[{"url":"/plugins/??dsh-quota-center/client.js&rev=quota-real","platform":"web","enabled":true,"id":"dsh-quota-center"}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/??dsh-quota-panel/client.js&rev=quota-real',
+    '/plugins/??dsh-quota-center/client.js&rev=quota-real',
   )
 })
 
 test('clientUrlFromBootHtml allows url before id and unrelated fields in the same object', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"url":"/plugins/??wrong/client.js&amp;rev=wrong","id":"other"},{"url":"/plugins/??dsh-quota-panel/client.js&amp;rev=quota-43","platform":"web","enabled":true,"id":"dsh-quota-panel"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"url":"/plugins/??wrong/client.js&amp;rev=wrong","id":"other"},{"url":"/plugins/??dsh-quota-center/client.js&amp;rev=quota-43","platform":"web","enabled":true,"id":"dsh-quota-center"}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/??dsh-quota-panel/client.js&rev=quota-43',
+    '/plugins/??dsh-quota-center/client.js&rev=quota-43',
   )
 })
 
 test('clientUrlFromBootHtml accepts a plain quota client path with a revision query', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/dsh-quota-panel/client.js?rev=quota-plain"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/dsh-quota-center/client.js?rev=quota-plain"}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/dsh-quota-panel/client.js?rev=quota-plain',
+    '/plugins/dsh-quota-center/client.js?rev=quota-plain',
   )
 })
 
@@ -263,32 +263,32 @@ test('clientUrlFromBootHtml accepts a plain quota client path with a revision qu
 // probe one absolute path, so the shell that curls `${origin}${path}` works
 // on both host lines.
 test('clientUrlFromBootHtml resolves the 0.1.7 document-relative combo reference to an absolute path', () => {
-  const html = '<script>window.__DSH_BOOT__={"rev":"graph-1","entries":[{"id":"dsh-quota-panel","url":"plugins/??dsh-quota-panel/client.js&rev=quota-relative","rev":"quota-relative","inject":[]}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"rev":"graph-1","entries":[{"id":"dsh-quota-center","url":"plugins/??dsh-quota-center/client.js&rev=quota-relative","rev":"quota-relative","inject":[]}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/??dsh-quota-panel/client.js&rev=quota-relative',
+    '/plugins/??dsh-quota-center/client.js&rev=quota-relative',
   )
 })
 
 test('clientUrlFromBootHtml resolves the 0.1.7 document-relative plain client reference', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"plugins/dsh-quota-panel/client.js?rev=quota-relative-plain"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"plugins/dsh-quota-center/client.js?rev=quota-relative-plain"}]}</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/dsh-quota-panel/client.js?rev=quota-relative-plain',
+    '/plugins/dsh-quota-center/client.js?rev=quota-relative-plain',
   )
 })
 
 for (const [name, url] of [
-  ['an absolute scheme', 'https://evil.invalid/plugins/dsh-quota-panel/client.js?rev=SYNTHETIC_RELATIVE_SCHEME'],
-  ['a protocol-relative authority', '//evil.invalid/plugins/dsh-quota-panel/client.js?rev=SYNTHETIC_RELATIVE_AUTHORITY'],
-  ['a scheme-relative combo reference', '//evil.invalid/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_RELATIVE_COMBO'],
+  ['an absolute scheme', 'https://evil.invalid/plugins/dsh-quota-center/client.js?rev=SYNTHETIC_RELATIVE_SCHEME'],
+  ['a protocol-relative authority', '//evil.invalid/plugins/dsh-quota-center/client.js?rev=SYNTHETIC_RELATIVE_AUTHORITY'],
+  ['a scheme-relative combo reference', '//evil.invalid/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_RELATIVE_COMBO'],
 ]) {
   test(`clientUrlFromBootHtml rejects a document-relative URL smuggling ${name}`, () => {
-    const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url }] })}</script>`
+    const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url }] })}</script>`
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /evil|SYNTHETIC_RELATIVE/)
         return true
       },
@@ -297,13 +297,13 @@ for (const [name, url] of [
 }
 
 test('clientUrlFromBootHtml rejects a backslash authority URL whose parsed origin is cross-origin', () => {
-  const url = '/\\evil.invalid/plugins/dsh-quota-panel/client.js?rev=SYNTHETIC_CROSS_ORIGIN'
+  const url = '/\\evil.invalid/plugins/dsh-quota-center/client.js?rev=SYNTHETIC_CROSS_ORIGIN'
   assert.equal(new URL(url, 'http://127.0.0.1').origin, 'http://evil.invalid')
-  const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url }] })}</script>`
+  const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url }] })}</script>`
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /evil|SYNTHETIC_CROSS_ORIGIN/)
       return true
     },
@@ -311,18 +311,18 @@ test('clientUrlFromBootHtml rejects a backslash authority URL whose parsed origi
 })
 
 for (const [name, url] of [
-  ['mixed slash authority', '/\\/evil.invalid/plugins/dsh-quota-panel/client.js?rev=SYNTHETIC_BACKSLASH_MIXED'],
-  ['repeated backslash authority', '/\\\\evil.invalid/plugins/dsh-quota-panel/client.js?rev=SYNTHETIC_BACKSLASH_REPEATED'],
-  ['backslash authority and path separators', '/\\evil.invalid\\plugins\\dsh-quota-panel\\client.js?rev=SYNTHETIC_BACKSLASH_NORMALIZED'],
-  ['combo authority delimiter', '/\\evil.invalid/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_BACKSLASH_COMBO'],
+  ['mixed slash authority', '/\\/evil.invalid/plugins/dsh-quota-center/client.js?rev=SYNTHETIC_BACKSLASH_MIXED'],
+  ['repeated backslash authority', '/\\\\evil.invalid/plugins/dsh-quota-center/client.js?rev=SYNTHETIC_BACKSLASH_REPEATED'],
+  ['backslash authority and path separators', '/\\evil.invalid\\plugins\\dsh-quota-center\\client.js?rev=SYNTHETIC_BACKSLASH_NORMALIZED'],
+  ['combo authority delimiter', '/\\evil.invalid/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_BACKSLASH_COMBO'],
 ]) {
   test(`clientUrlFromBootHtml rejects cross-origin ${name} normalization without echoing the URL`, () => {
     assert.notEqual(new URL(url, 'http://127.0.0.1').origin, 'http://127.0.0.1')
-    const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url }] })}</script>`
+    const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url }] })}</script>`
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /evil|SYNTHETIC_BACKSLASH/i)
         return true
       },
@@ -331,13 +331,13 @@ for (const [name, url] of [
 }
 
 test('clientUrlFromBootHtml rejects a same-origin path backslash before URL normalization', () => {
-  const url = '/plugins\\dsh-quota-panel/client.js?rev=SYNTHETIC_BACKSLASH_PATH'
+  const url = '/plugins\\dsh-quota-center/client.js?rev=SYNTHETIC_BACKSLASH_PATH'
   assert.equal(new URL(url, 'http://127.0.0.1').origin, 'http://127.0.0.1')
-  const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url }] })}</script>`
+  const html = `<script>window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url }] })}</script>`
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_BACKSLASH_PATH/)
       return true
     },
@@ -345,11 +345,11 @@ test('clientUrlFromBootHtml rejects a same-origin path backslash before URL norm
 })
 
 test('clientUrlFromBootHtml rejects a revision found only in the URL fragment without echoing it', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/dsh-quota-panel/client.js?x=1#fragment?rev=SYNTHETIC_FRAGMENT_REV"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/dsh-quota-center/client.js?x=1#fragment?rev=SYNTHETIC_FRAGMENT_REV"}]}</script>'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_FRAGMENT_REV/)
       return true
     },
@@ -357,11 +357,11 @@ test('clientUrlFromBootHtml rejects a revision found only in the URL fragment wi
 })
 
 test('clientUrlFromBootHtml rejects ampersand revision text embedded in a plain pathname', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/dsh-quota-panel/client.js&rev=SYNTHETIC_PATH_REV"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/dsh-quota-center/client.js&rev=SYNTHETIC_PATH_REV"}]}</script>'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_PATH_REV/)
       return true
     },
@@ -369,29 +369,29 @@ test('clientUrlFromBootHtml rejects ampersand revision text embedded in a plain 
 })
 
 for (const [name, url] of [
-  ['combo path', '/plugins/??dsh-quota-panel/client.js&rev=quota-combo#fragment?rev=decoy'],
-  ['plain path', '/plugins/dsh-quota-panel/client.js?x=1&rev=quota-plain#fragment'],
+  ['combo path', '/plugins/??dsh-quota-center/client.js&rev=quota-combo#fragment?rev=decoy'],
+  ['plain path', '/plugins/dsh-quota-center/client.js?x=1&rev=quota-plain#fragment'],
 ]) {
   test(`clientUrlFromBootHtml accepts a real revision in the ${name} request portion before a fragment`, () => {
-    const html = `<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"${url}"}]}</script>`
+    const html = `<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"${url}"}]}</script>`
     assert.equal(clientUrlFromBootHtml(html), url)
   })
 }
 
 test('clientUrlFromBootHtml parses nested boot JSON and braces inside strings', () => {
-  const html = '<script>window.__DSH_BOOT__ = {"meta":{"note":"literal { braces } and \\"quoted\\" text"},"plugins":[{"url":"/plugins/??dsh-quota-panel/client.js&amp;rev=quota-44","details":{"nested":{"enabled":true}},"id":"dsh-quota-panel"}]};</script>'
+  const html = '<script>window.__DSH_BOOT__ = {"meta":{"note":"literal { braces } and \\"quoted\\" text"},"plugins":[{"url":"/plugins/??dsh-quota-center/client.js&amp;rev=quota-44","details":{"nested":{"enabled":true}},"id":"dsh-quota-center"}]};</script>'
   assert.equal(
     clientUrlFromBootHtml(html),
-    '/plugins/??dsh-quota-panel/client.js&rev=quota-44',
+    '/plugins/??dsh-quota-center/client.js&rev=quota-44',
   )
 })
 
 test('clientUrlFromBootHtml rejects a script found only inside an HTML comment without echoing it', () => {
-  const html = '<!-- <script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_COMMENT_REV"}]}</script> -->'
+  const html = '<!-- <script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_COMMENT_REV"}]}</script> -->'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_COMMENT_REV/)
       return true
     },
@@ -399,11 +399,11 @@ test('clientUrlFromBootHtml rejects a script found only inside an HTML comment w
 })
 
 test('clientUrlFromBootHtml rejects a script nested inside quoted and nested templates without echoing it', () => {
-  const html = '<template data-note="quoted > value"><section><TeMpLaTe id=\'nested\'><ScRiPt>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_TEMPLATE_REV"}]}</sCrIpT></tEmPlAtE></section></template>'
+  const html = '<template data-note="quoted > value"><section><TeMpLaTe id=\'nested\'><ScRiPt>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_TEMPLATE_REV"}]}</sCrIpT></tEmPlAtE></section></template>'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_TEMPLATE_REV/)
       return true
     },
@@ -416,11 +416,11 @@ for (const [name, opening] of [
 ]) {
   test(`clientUrlFromBootHtml does not execute a script pseudo-tag with ${name} after less-than`, () => {
     const rev = `SYNTHETIC_PSEUDO_OPEN_${name.toUpperCase()}`
-    const html = `${opening}window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url: `/plugins/??dsh-quota-panel/client.js&rev=${rev}` }] })}</script>`
+    const html = `${opening}window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url: `/plugins/??dsh-quota-center/client.js&rev=${rev}` }] })}</script>`
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /SYNTHETIC_PSEUDO_OPEN/)
         return true
       },
@@ -434,11 +434,11 @@ for (const [name, closing] of [
 ]) {
   test(`clientUrlFromBootHtml keeps scripts inert after a template pseudo-close with ${name} after slash`, () => {
     const rev = `SYNTHETIC_PSEUDO_CLOSE_${name.toUpperCase()}`
-    const html = `<template data-note="quoted > value">${closing}<ScRiPt nonce="quoted > value">window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-panel', url: `/plugins/??dsh-quota-panel/client.js&rev=${rev}` }] })}</sCrIpT></template>`
+    const html = `<template data-note="quoted > value">${closing}<ScRiPt nonce="quoted > value">window.__DSH_BOOT__=${JSON.stringify({ plugins: [{ id: 'dsh-quota-center', url: `/plugins/??dsh-quota-center/client.js&rev=${rev}` }] })}</sCrIpT></template>`
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /SYNTHETIC_PSEUDO_CLOSE/)
         return true
       },
@@ -447,63 +447,63 @@ for (const [name, closing] of [
 }
 
 test('clientUrlFromBootHtml accepts adjacent mixed-case tags with post-name whitespace and quoted greater-than attributes', () => {
-  const html = '<TeMpLaTe data-note="quoted > value"></tEmPlAtE \t><ScRiPt\tnonce="quoted > value" type="text/javascript" >window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=adjacent-valid"}]}</sCrIpT \t>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=adjacent-valid')
+  const html = '<TeMpLaTe data-note="quoted > value"></tEmPlAtE \t><ScRiPt\tnonce="quoted > value" type="text/javascript" >window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=adjacent-valid"}]}</sCrIpT \t>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=adjacent-valid')
 })
 
 test('clientUrlFromBootHtml ignores comment and template decoys when one executable assignment exists', () => {
-  const html = '<!-- <script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=comment-decoy"}]}</script> --><template data-note="quoted > value"><template><script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=template-decoy"}]}</script></template></template><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=executable"}]}</script>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=executable')
+  const html = '<!-- <script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=comment-decoy"}]}</script> --><template data-note="quoted > value"><template><script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=template-decoy"}]}</script></template></template><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=executable"}]}</script>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=executable')
 })
 
 test('clientUrlFromBootHtml does not treat HTML comment markers inside executable script JSON as markup', () => {
-  const html = '<script>window.__DSH_BOOT__={"meta":{"note":"literal <!-- marker --> text"},"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=comment-string"}]}</script>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=comment-string')
+  const html = '<script>window.__DSH_BOOT__={"meta":{"note":"literal <!-- marker --> text"},"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=comment-string"}]}</script>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=comment-string')
 })
 
 for (const [name, html] of [
   [
     'duplicate assignments',
-    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=first"}]}</script><script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=second"}]}</script>',
+    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=first"}]}</script><script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=second"}]}</script>',
   ],
   [
     'a string decoy before a valid assignment',
-    '<script>const decoy = "window.__DSH_BOOT__={}"</script><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]}</script>',
+    '<script>const decoy = "window.__DSH_BOOT__={}"</script><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]}</script>',
   ],
   [
     'a malformed anchored assignment before a valid assignment',
-    '<script>window.__DSH_BOOT__={"plugins":[}</script><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]}</script>',
+    '<script>window.__DSH_BOOT__={"plugins":[}</script><script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]}</script>',
   ],
   [
     'extra script statements around the assignment',
-    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]};globalThis.extra=true</script>',
+    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]};globalThis.extra=true</script>',
   ],
   [
     'a non-executable application/json script',
-    '<script type="application/json">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]}</script>',
+    '<script type="application/json">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]}</script>',
   ],
   [
     'a non-executable text/plain script',
-    '<script nonce="safe" type="text/plain">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]}</script>',
+    '<script nonce="safe" type="text/plain">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]}</script>',
   ],
   [
     'an unquoted non-executable script type',
-    '<script type=application/json>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=real"}]}</script>',
+    '<script type=application/json>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=real"}]}</script>',
   ],
   [
     'duplicate quota plugin ids',
-    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=one"},{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=two"}]}</script>',
+    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=one"},{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=two"}]}</script>',
   ],
   [
     'a valid quota client plus a duplicate invalid quota id',
-    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=one"},{"id":"dsh-quota-panel","url":"/plugins/??other/client.js&rev=two"}]}</script>',
+    '<script>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=one"},{"id":"dsh-quota-center","url":"/plugins/??other/client.js&rev=two"}]}</script>',
   ],
 ]) {
   test(`clientUrlFromBootHtml fails closed on ${name}`, () => {
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /first|second|real/)
         return true
       },
@@ -519,11 +519,11 @@ for (const [name, attributes] of [
   ['tab-spaced src', 'nonce="safe"\tSRC\t=\t/external.js defer'],
 ]) {
   test(`clientUrlFromBootHtml rejects inline boot body on script with ${name}`, () => {
-    const html = `<script ${attributes}>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_SRC_REV"}]}</script>`
+    const html = `<script ${attributes}>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_SRC_REV"}]}</script>`
     assert.throws(
       () => clientUrlFromBootHtml(html),
       error => {
-        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+        assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
         assert.doesNotMatch(error.message, /external|SYNTHETIC_SRC_REV/)
         return true
       },
@@ -540,17 +540,17 @@ for (const [name, attributes, rev] of [
   ['nonce value containing src', 'nonce="safe src marker" defer', 'nonce-value-src'],
 ]) {
   test(`clientUrlFromBootHtml does not confuse ${name} with exact src`, () => {
-    const html = `<script ${attributes}>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=${rev}"}]}</script>`
-    assert.equal(clientUrlFromBootHtml(html), `/plugins/??dsh-quota-panel/client.js&rev=${rev}`)
+    const html = `<script ${attributes}>globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=${rev}"}]}</script>`
+    assert.equal(clientUrlFromBootHtml(html), `/plugins/??dsh-quota-center/client.js&rev=${rev}`)
   })
 }
 
 test('clientUrlFromBootHtml preserves first duplicate type when non-executable comes first', () => {
-  const html = '<script type="application/json" TYPE="module">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_DUPLICATE_TYPE"}]}</script>'
+  const html = '<script type="application/json" TYPE="module">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_DUPLICATE_TYPE"}]}</script>'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_DUPLICATE_TYPE/)
       return true
     },
@@ -558,26 +558,26 @@ test('clientUrlFromBootHtml preserves first duplicate type when non-executable c
 })
 
 test('clientUrlFromBootHtml preserves first duplicate type when executable comes first', () => {
-  const html = '<script TYPE="module" type="application/json">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=first-type"}]}</script>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=first-type')
+  const html = '<script TYPE="module" type="application/json">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=first-type"}]}</script>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=first-type')
 })
 
 test('clientUrlFromBootHtml accepts an executable script with nonce and JavaScript MIME', () => {
-  const html = '<script nonce="safe" defer type="text/javascript">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=typed"}]}</script>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=typed')
+  const html = '<script nonce="safe" defer type="text/javascript">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=typed"}]}</script>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=typed')
 })
 
 test('clientUrlFromBootHtml accepts an executable module script', () => {
-  const html = '<script type="module">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&rev=module"}]}</script>'
-  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-panel/client.js&rev=module')
+  const html = '<script type="module">globalThis["__DSH_BOOT__"]={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&rev=module"}]}</script>'
+  assert.equal(clientUrlFromBootHtml(html), '/plugins/??dsh-quota-center/client.js&rev=module')
 })
 
 test('clientUrlFromBootHtml rejects a quota record pointing at another plugin without echoing HTML', () => {
-  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??other/client.js&amp;rev=SYNTHETIC_BAD_REV"}]}</script>'
+  const html = '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??other/client.js&amp;rev=SYNTHETIC_BAD_REV"}]}</script>'
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /other|SYNTHETIC_BAD_REV/)
       return true
     },
@@ -601,7 +601,7 @@ test('clientUrlFromBootHtml rejects a missing quota client URL without echoing H
   assert.throws(
     () => clientUrlFromBootHtml(html),
     error => {
-      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-panel client URL')
+      assert.equal(error.message, 'boot HTML must advertise a revisioned dsh-quota-center client URL')
       assert.doesNotMatch(error.message, /SYNTHETIC_BOOT_CONTENT/)
       return true
     },

@@ -293,7 +293,7 @@ function bootJsonText(html) {
 
 function quotaClientObjects(value, found = []) {
   if (!value || typeof value !== 'object') return found
-  if (value.id === 'dsh-quota-panel') found.push(value)
+  if (value.id === 'dsh-quota-center') found.push(value)
   for (const child of Object.values(value)) quotaClientObjects(child, found)
   return found
 }
@@ -317,8 +317,8 @@ function quotaClientUrl(value) {
     return undefined
   }
   if (parsed.origin !== loopbackBase) return undefined
-  const exactClient = parsed.pathname === '/plugins/dsh-quota-panel/client.js'
-  const exactComboClient = parsed.pathname === '/plugins/' && parsed.search.startsWith('??dsh-quota-panel/client.js&')
+  const exactClient = parsed.pathname === '/plugins/dsh-quota-center/client.js'
+  const exactComboClient = parsed.pathname === '/plugins/' && parsed.search.startsWith('??dsh-quota-center/client.js&')
   if ((exactClient || exactComboClient) && parsed.searchParams.get('rev')) return resolved
   return undefined
 }
@@ -342,7 +342,7 @@ export function clientUrlFromBootHtml(html) {
   } catch {}
   const url = quotaClientUrl(payload)
   if (url !== undefined) return url
-  fail('boot HTML must advertise a revisioned dsh-quota-panel client URL')
+  fail('boot HTML must advertise a revisioned dsh-quota-center client URL')
 }
 
 export function redactLog(text) {

@@ -21,7 +21,7 @@ STEPS=assert,seed,stage,l1,pack,profile /usr/local/bin/testbed-entrypoint >/dev/
 total=$(wc -l < /work/dump-config.txt)
 start=$((total - 75))
 printf "%s\n" \
-  "# 真实样本：dsh ${DSH_VERSION} + dsh-quota-panel 装入 minimal profile 后 --dump-config 的第 ${start}-${total} 行" \
+  "# 真实样本：dsh ${DSH_VERSION} + dsh-quota-center 装入 minimal profile 后 --dump-config 的第 ${start}-${total} 行" \
   "# 重新生成：tests/capture-real-dump.sh（会重跑 pack+profile）"
 sed -n "${start},${total}p" /work/dump-config.txt
 ' 2>/dev/null

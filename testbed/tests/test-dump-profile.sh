@@ -52,7 +52,7 @@ FAIL_COUNT=0
 
 # 宿主 dump 规范（dsh 0.1.5-rc.1 实测；dsh 0.1.7-rc.1 复测形状不变）：插件行形如
 #   `- id: quota-panel`
-#   `  name: dsh-quota-panel`      <- name 恰好缩进 2 空格、裸值、行尾无内容
+#   `  name: dsh-quota-center`      <- name 恰好缩进 2 空格、裸值、行尾无内容
 # 测试用同一锚点从 dump 里取"目标 name 行"，判绿/判红依据行本身而非任意子串。
 dump_names() {
 	awk '/^  name: / { print substr($0, 9) }' "$1"
@@ -112,23 +112,23 @@ setup_stub
 
 # 正例前置自检：真实样本必须恰好只有 1 条目标 name 行（否则正例本身不可信）。
 echo "--- case: real-sample 前置自检 ---"
-echo "    样本 name 行共 $(dump_names "$FIX/real-dump-sample.txt" | wc -l) 条，其中 dsh-quota-panel 恰好 $(dump_names "$FIX/real-dump-sample.txt" | grep -cFx dsh-quota-panel) 条"
-dump_names "$FIX/real-dump-sample.txt" | grep -Fx dsh-quota-panel | sed 's/^/    | 目标行: /'
-if [ "$(dump_names "$FIX/real-dump-sample.txt" | grep -cFx dsh-quota-panel)" != 1 ]; then
-	echo "    FATAL: 真实样本里 dsh-quota-panel 的 name 行不是恰好 1 条"
+echo "    样本 name 行共 $(dump_names "$FIX/real-dump-sample.txt" | wc -l) 条，其中 dsh-quota-center 恰好 $(dump_names "$FIX/real-dump-sample.txt" | grep -cFx dsh-quota-center) 条"
+dump_names "$FIX/real-dump-sample.txt" | grep -Fx dsh-quota-center | sed 's/^/    | 目标行: /'
+if [ "$(dump_names "$FIX/real-dump-sample.txt" | grep -cFx dsh-quota-center)" != 1 ]; then
+	echo "    FATAL: 真实样本里 dsh-quota-center 的 name 行不是恰好 1 条"
 	exit 2
 fi
 
 run_case real-sample "$FIX/dsh-stub-emit.sh" 0 "装配断言通过" "$FIX/real-dump-sample.txt"
-run_case comment-only "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-panel 行" "$FIX/comment-only-dump.txt"
-run_case similar-name "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-panel 行" "$FIX/similar-name-dump.txt"
-run_case clean-no-target "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-panel 行" "$FIX/clean-other-layers-dump.txt"
-run_case malformed-row "$FIX/dsh-stub-malformed.sh" 1 "组合树中没有 dsh-quota-panel 行" ""
-run_case name-in-other-config "$FIX/dsh-stub-name-in-other-config.sh" 1 "组合树中没有 dsh-quota-panel 行" ""
-run_case stderr-warning "$FIX/dsh-stub-stderr-warning.sh" 1 "组合树中没有 dsh-quota-panel 行" ""
-run_case name-on-stderr "$FIX/dsh-stub-name-on-stderr.sh" 1 "组合树中没有 dsh-quota-panel 行" ""
+run_case comment-only "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-center 行" "$FIX/comment-only-dump.txt"
+run_case similar-name "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-center 行" "$FIX/similar-name-dump.txt"
+run_case clean-no-target "$FIX/dsh-stub-emit.sh" 1 "组合树中没有 dsh-quota-center 行" "$FIX/clean-other-layers-dump.txt"
+run_case malformed-row "$FIX/dsh-stub-malformed.sh" 1 "组合树中没有 dsh-quota-center 行" ""
+run_case name-in-other-config "$FIX/dsh-stub-name-in-other-config.sh" 1 "组合树中没有 dsh-quota-center 行" ""
+run_case stderr-warning "$FIX/dsh-stub-stderr-warning.sh" 1 "组合树中没有 dsh-quota-center 行" ""
+run_case name-on-stderr "$FIX/dsh-stub-name-on-stderr.sh" 1 "组合树中没有 dsh-quota-center 行" ""
 run_case dump-fails "$FIX/dsh-stub-fails.sh" 1 "dsh --dump-config 失败" ""
-run_case empty-dump "$FIX/dsh-stub-empty.sh" 1 "组合树中没有 dsh-quota-panel 行" ""
+run_case empty-dump "$FIX/dsh-stub-empty.sh" 1 "组合树中没有 dsh-quota-center 行" ""
 
 echo
 echo "dump_profile 对照测试：PASS=${PASS_COUNT} FAIL=${FAIL_COUNT}"

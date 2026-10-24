@@ -1,16 +1,16 @@
 /**
- * dsh-quota-panel — client half (browser bundle, served at
- * /plugins/dsh-quota-panel/client.js through the `dsh.client` manifest).
+ * dsh-quota-center — client half (browser bundle, served at
+ * /plugins/dsh-quota-center/client.js through the `dsh.client` manifest).
  *
  * Registers one `shell.overlay` slot entry rendering the quota widget with
  * React: a collapsed glanceable capsule by default
  * (`● ¥58.36 · ● 45%`), expanding on click into the full card
- * (header "模型额度" + per-provider rows + progress bars). Next to the
+ * (header "额度中心" + per-provider rows + progress bars). Next to the
  * refresh button, a gear button (⚙) opens the settings panel:
  * per-provider visibility, refresh interval, and per-provider warn
  * thresholds — persisted to localStorage, never sent anywhere.
  *
- * Data arrives over the loopback Connection RPC channel `/dsh-quota-panel`
+ * Data arrives over the loopback Connection RPC channel `/dsh-quota-center`
  * (endpoints `specs` / `fetch-all`) owned by the host half in lib/index.js;
  * API keys never reach the browser. `fetch-all` rows carry host-normalized
  * views (kind balance / usage / info) — upstream JSON schemas stay
@@ -22,7 +22,7 @@
  * follows the product theme (light/dark) instead of carrying its own palette.
  */
 (window as any).__ModuleLoader__.load({
-	id: "dsh-quota-panel",
+	id: "dsh-quota-center",
 	factory: (require) => {
 		var module = { exports: {} as any };
 		var exports = module.exports;
@@ -30,10 +30,10 @@
 		var React = require("react");
 
 		// Connection's authenticated /api channel; the host half mounts one exact
-		// Fetch route per endpoint under the dsh-quota-panel method namespace.
+		// Fetch route per endpoint under the dsh-quota-center method namespace.
 		var CHANNEL = "/api";
-		var RPC_METHOD_PREFIX = "dsh-quota-panel";
-		var STORAGE_KEY = "dsh-quota-panel:settings";
+		var RPC_METHOD_PREFIX = "dsh-quota-center";
+		var STORAGE_KEY = "dsh-quota-center:settings";
 
 		var REFRESH_CHOICES = [
 			{ value: "" },
@@ -48,10 +48,10 @@
 		var NS = "quota-panel";
 		var DICT = {
 			zh: {
-				title: "模型额度",
-				expand: "展开模型额度",
-				collapse: "收起模型额度",
-				refresh: "刷新模型额度",
+				title: "额度中心",
+				expand: "展开额度中心",
+				collapse: "收起额度中心",
+				refresh: "刷新额度中心",
 				openSettings: "打开设置",
 				closeSettings: "关闭设置",
 				allHidden: "已全部隐藏",
@@ -94,25 +94,6 @@
 				warnBalancePH: "预警 {cur}（默认 {n}）",
 				localOnly: "设置仅保存在本浏览器",
 				resetDefaults: "恢复默认",
-				chatgptAccount: "ChatGPT 账号",
-				chatgptLogin: "登录 ChatGPT",
-				chatgptLogout: "退出登录",
-				chatgptLoggedIn: "已登录（{source}）",
-				chatgptSourceDsh: "插件内登录",
-				chatgptSourceCodex: "Codex CLI",
-				chatgptPlan: "套餐：{plan}",
-				chatgptLoginHint: "未登录。点下方按钮，在浏览器用 ChatGPT 账号授权即可，无需安装 Codex CLI。",
-				chatgptLoginStep1: "1. 打开此链接并登录：",
-				chatgptLoginStep2: "2. 输入一次性验证码（15 分钟内有效）：",
-				chatgptWaiting: "等待浏览器授权中…",
-				chatgptLoginFailed: "登录失败：{msg}",
-				chatgptCopy: "复制",
-				chatgptCopied: "已复制",
-				chatgptOpenLink: "打开链接",
-				chatgptCancel: "取消",
-				chatgptProxy: "ChatGPT 代理（可选）",
-				chatgptProxyHint: "登录与用量查询均经此 http(s) 代理（地区受限网络需要）；留空直连",
-				chatgptProxyDirect: "http://127.0.0.1:7890（留空直连）"
 			},
 			en: {
 				title: "Model quota",
@@ -161,25 +142,6 @@
 				warnBalancePH: "Warn {cur} (default {n})",
 				localOnly: "Stored in this browser only",
 				resetDefaults: "Reset defaults",
-				chatgptAccount: "ChatGPT account",
-				chatgptLogin: "Log in to ChatGPT",
-				chatgptLogout: "Log out",
-				chatgptLoggedIn: "Signed in ({source})",
-				chatgptSourceDsh: "in-plugin login",
-				chatgptSourceCodex: "Codex CLI",
-				chatgptPlan: "Plan: {plan}",
-				chatgptLoginHint: "Not signed in. Click below and authorize with your ChatGPT account in the browser — no Codex CLI install required.",
-				chatgptLoginStep1: "1. Open this link and sign in:",
-				chatgptLoginStep2: "2. Enter this one-time code (valid for 15 minutes):",
-				chatgptWaiting: "Waiting for browser authorization…",
-				chatgptLoginFailed: "Login failed: {msg}",
-				chatgptCopy: "Copy",
-				chatgptCopied: "Copied",
-				chatgptOpenLink: "Open link",
-				chatgptCancel: "Cancel",
-				chatgptProxy: "ChatGPT proxy (optional)",
-				chatgptProxyHint: "Login and usage queries go through this http(s) proxy (needed on region-restricted networks); empty = direct",
-				chatgptProxyDirect: "http://127.0.0.1:7890 (empty = direct)"
 			}
 		};
 
@@ -191,7 +153,7 @@
 		var OVERLAY_LIFT_CSS = '[class*="overlayLayer"]{z-index:1150 !important;}';
 
 		var CSS = [
-			'#dsh-quota-panel{position:fixed;right:18px;bottom:18px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;pointer-events:auto;color:var(--dsw-alias-label-primary,#1b1b1c);font-family:var(--dsw-font-family,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif);font-size:13px;line-height:1.45}',
+			'#dsh-quota-center{position:fixed;right:18px;bottom:18px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;pointer-events:auto;color:var(--dsw-alias-label-primary,#1b1b1c);font-family:var(--dsw-font-family,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif);font-size:13px;line-height:1.45}',
 			'#dsh-quota-capsule{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 14px;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:18px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv2,0 4px 12px rgba(15,17,21,.02),0 2px 8px rgba(15,17,21,.04));cursor:pointer;font:inherit;transition:background-color 120ms ease;touch-action:none}',
 			'#dsh-quota-capsule:hover{background:var(--dsw-alias-bg-overlay,#ebeef2)}',
 			'#dsh-quota-capsule .dsh-capsule-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--dsw-static-neutral-bluish-400,#adb2b8)}',
@@ -289,12 +251,15 @@
 		}
 
 		/** Absolute reset time in 24h local format: 2026-08-15 14:00. */
-		function fmtNextReset(t, iso) {
-			var d = new Date(iso);
-			if (!isFinite(d.getTime())) return "";
-			var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-			return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
-		}
+        function fmtNextReset(t, iso) {
+            var date = new Date(iso);
+            if (!isFinite(date.getTime())) return "";
+            var seconds = Math.max(0, Math.ceil((date.getTime() - Date.now()) / 1000));
+            var days = Math.floor(seconds / 86400);
+            var hours = Math.floor(seconds % 86400 / 3600);
+            var minutes = Math.floor(seconds % 3600 / 60);
+            return (days ? days + "天 " : "") + hours + "小时 " + minutes + "分后重置（" + date.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) + " 北京时间）";
+        }
 
 		// Dragged-panel geometry: pointer travel before a gesture counts as a
 		// drag (below it the click-to-expand still fires) and the viewport
@@ -343,100 +308,31 @@
 			if (!entry || entry.error) {
 				return {
 					kind: kind, status: "error", summary: "—", value: "—",
-					sub: unavailable, usageText: null, barPercent: 0, caption: "",
+					sub: entry && entry.error ? String(entry.error) : unavailable, usageText: null, barPercent: 0, caption: "",
 					title: entry && entry.error ? String(entry.error) : "no data"
 				};
 			}
 			var view = entry.view || {};
 			if (view.kind === "usage") {
-				var w = view.windows || {};
-				var winPct = function (name) {
-					var win = w[name];
-					return win && typeof win.percent === "number" && Number.isFinite(win.percent) ? win.percent : null;
-				};
-				var rp = winPct("rolling");
-				var wp = winPct("weekly");
-				var mp = winPct("monthly");
-				var present = [rp, wp, mp].filter(function (v) { return v !== null; });
-				var high = present.length ? Math.max.apply(null, present) : 0;
-				var localizeWin = function (label) {
-					return label === "滚" ? t("winRolling") : label === "周" ? t("winWeekly") : label === "月" ? t("winMonthly") : label === "搜索" ? t("winSearch") : label;
-				};
-				var specLabels = spec.windowLabels || {};
-				var labels = {
-					rolling: localizeWin(specLabels.rolling || t("winRolling")),
-					weekly: localizeWin(specLabels.weekly || t("winWeekly")),
-					monthly: localizeWin(specLabels.monthly || t("winMonthly"))
-				};
-				var pcts = effectivePercents(spec, warnOverride);
-				// Capsule display mode (issue #2 follow-up): which window the
-				// collapsed capsule follows. auto/max keep the historical
-				// highest-window glance; rolling/weekly pin it to one window and
-				// the status dot / bar / caption align with the SHOWN value (a
-				// 5h capsule no longer glows warn because the weekly pool is
-				// high). A window the plan does not carry falls back to the
-				// highest, so nothing regresses for single-window plans.
-				var mode = modeOverride ?? spec.capsuleMode;
-				if (mode !== "rolling" && mode !== "weekly") mode = "auto";
-				var shownPct, shownWin;
-				if (mode === "rolling" && rp !== null) { shownPct = rp; shownWin = w.rolling; }
-				else if (mode === "weekly" && wp !== null) { shownPct = wp; shownWin = w.weekly; }
-				else { shownPct = high; shownWin = null; }
-				var status = shownPct >= pcts.error ? "error" : shownPct >= pcts.warn ? "warn" : "ok";
-				// Weekly absent -> the segment is dropped entirely; the search/MCP
-				// lane unknown (null) -> "-%" instead of a fabricated 0%.
-				var fmtWin = function (label, v) { return label + " " + (v === null ? "—" : v + "%"); };
-				var titleLine = function (label, v, win) {
-					return label + ": " + (v === null ? t("noWinData") : v + "% · " + t("nextReset", { time: fmtNextReset(t, win && win.resetsAt) }));
-				};
-				// Weekly-only plans (ChatGPT Plus / Codex, Kimi weekly) have no
-				// rolling or monthly window. Drop the empty 滚 / 月 noise and
-				// surface the weekly reset time inline — it otherwise lives
-				// only in the hover title.
-				var weeklyOnly = rp === null && wp !== null && mp === null;
-				var textSegs;
-				if (weeklyOnly) {
-					textSegs = [fmtWin(labels.weekly, wp)];
-					if (w.weekly && w.weekly.resetsAt) {
-						textSegs.push(t("nextReset", { time: fmtNextReset(t, w.weekly.resetsAt) }));
-					}
-				} else {
-					textSegs = [fmtWin(labels.rolling, rp)];
-					if (wp !== null) textSegs.push(fmtWin(labels.weekly, wp));
-					textSegs.push(labels.monthly + " " + (mp === null ? "-%" : mp + "%"));
-				}
-				var titleLines = [titleLine(labels.rolling, rp, w.rolling)];
-				if (wp !== null) titleLines.push(titleLine(labels.weekly, wp, w.weekly));
-				titleLines.push(titleLine(labels.monthly, mp, w.monthly));
-				// At 100% the caption appends the reset time of the exhausted
-				// window — the SHOWN window first, then any exhausted one, then
-				// any window's reset as fallback:
-				//   当前已使用 100% 等待重置 2026-08-15 16:00
-				var exhaustedReset = null;
-				if (shownPct >= 100) {
-					var cands = [];
-					if (shownWin && shownWin.resetsAt) cands.push(shownWin.resetsAt);
-					if (rp !== null && rp >= 100 && w.rolling && w.rolling.resetsAt) cands.push(w.rolling.resetsAt);
-					if (wp !== null && wp >= 100 && w.weekly && w.weekly.resetsAt) cands.push(w.weekly.resetsAt);
-					if (mp !== null && mp >= 100 && w.monthly && w.monthly.resetsAt) cands.push(w.monthly.resetsAt);
-					if (cands.length === 0) {
-						for (var wn = 0; wn < 3; wn++) {
-							var wname = ["rolling", "weekly", "monthly"][wn];
-							if (w[wname] && w[wname].resetsAt) { cands.push(w[wname].resetsAt); break; }
-						}
-					}
-					exhaustedReset = cands.length > 0 ? cands[0] : null;
-				}
-				return {
-					kind: "usage", status: status, summary: shownPct + "%", value: null,
-					usageText: textSegs.join(" · "),
-					barPercent: Math.min(Math.max(shownPct, 0), 100),
-					caption: exhaustedReset !== null
-						? t("peakUsageWaiting", { pct: shownPct, time: fmtNextReset(t, exhaustedReset) })
-						: t("peakUsage", { pct: shownPct }),
-					title: titleLines.join("\n")
-				};
-			}
+                var windows = view.windows || {};
+                var names = Object.keys(windows).filter(function (key) { return typeof windows[key].percent === "number" && Number.isFinite(windows[key].percent); });
+                var mode = modeOverride || spec.capsuleMode;
+                var selectedNames = names.indexOf(mode) >= 0 ? [mode] : names;
+                var used = selectedNames.length ? Math.max.apply(null, selectedNames.map(function (key) { return windows[key].percent; })) : 0;
+                var pcts = effectivePercents(spec, warnOverride);
+                var labels = spec.windowLabels || {};
+                var details = names.map(function (key) {
+                    var win = windows[key];
+                    var label = win.label || labels[key] || ({ rolling: "5 小时", weekly: "每周", monthly: "每月" })[key] || key;
+                    var reset = fmtNextReset(t, win.resetsAt);
+                    return label + "：剩余 " + (100 - win.percent).toFixed(0) + "%" + (reset ? " · " + reset : " · 重置时间未知");
+                });
+                return { kind: "usage", status: used >= pcts.error ? "error" : used >= pcts.warn ? "warn" : "ok",
+                    summary: names.length ? (100 - used).toFixed(0) + "%" : "—", value: null,
+                    usageText: details.join("\n"), barPercent: 100 - used,
+                    caption: view.title || "剩余额度", title: details.join("\n"),
+                    lanes: names.map(function(key) { return { text: details[names.indexOf(key)], remaining: 100 - windows[key].percent }; }) };
+            }
 			if (view.kind === "info") {
 				var text = String(view.text || "—");
 				return {
@@ -463,7 +359,7 @@
 			var shown = (spec.currency || "¥") + amount.toFixed(2);
 			return {
 				kind: "balance", status: status2, summary: shown,
-				value: shown, sub: sub, usageText: null, barPercent: 0, caption: "",
+				value: shown, sub: view.toppedUp != null || view.granted != null ? "充值 ¥" + (view.toppedUp ?? "—") + " · 赠送 ¥" + (view.granted ?? "—") : sub, usageText: null, barPercent: 0, caption: "",
 				title: view.title || ""
 			};
 		}
@@ -479,7 +375,13 @@
 				headChildren.push(React.createElement("span", { key: "value", className: "dsh-provider-value" }, view.value));
 			}
 			var body = [React.createElement("div", { key: "head", className: "dsh-provider-head" }, headChildren)];
-			if (view.kind === "usage") {
+			if (view.kind === "usage" && view.lanes) {
+                view.lanes.forEach(function(lane, i) {
+                    body.push(React.createElement("div", { key: "lane-" + i, className: "dsh-usage-caption" }, lane.text));
+                    body.push(React.createElement("div", { key: "track-" + i, className: "dsh-progress" }, React.createElement("div", { className: "dsh-progress-fill", style: { width: lane.remaining + "%" } })));
+                });
+                if (view.caption) body.push(React.createElement("div", { key: "cap", className: "dsh-usage-caption" }, view.caption));
+            } else if (view.kind === "usage") {
 				body.push(React.createElement("div", { key: "usage", className: "dsh-usage-values" }, view.usageText));
 				body.push(React.createElement("div", { key: "track", className: "dsh-progress" },
 					React.createElement("div", { className: "dsh-progress-fill", style: { width: view.barPercent + "%" } })));
@@ -499,144 +401,9 @@
 		 * verification URL) or a signed-in state with a log-out button.
 		 * Secrets never reach this component — only status and codes.
 		 */
-		function ChatGPTAccount(props) {
-			var t = props.t;
-			var call = props.call;
-			var settings = props.settings;
-			var onChange = props.onChange;
-			var statusState = React.useState(null);
-			var status = statusState[0], setStatus = statusState[1];
-			var busyState = React.useState(false);
-			var busy = busyState[0], setBusy = busyState[1];
-			var errorState = React.useState(null);
-			var errorMsg = errorState[0], setError = errorState[1];
-			var copiedState = React.useState(false);
-			var copied = copiedState[0], setCopied = copiedState[1];
-			var pollRef = React.useRef(null);
-
-			// Proxy for the ChatGPT login flow AND its usage queries: stored
-			// under settings.proxy.chatgpt — the same key fetch-all already
-			// forwards as the per-row proxy override, so login and querying
-			// share one configuration.
-			var cgProxy = settings && settings.proxy && typeof settings.proxy.chatgpt === "string" ? settings.proxy.chatgpt : "";
-			function setProxy(value) {
-				var trimmed = String(value).trim();
-				var proxy = Object.assign({}, settings && settings.proxy);
-				if (trimmed === "") delete proxy.chatgpt;
-				else proxy.chatgpt = trimmed;
-				onChange(Object.assign({}, settings, { proxy: proxy }));
-			}
-
-			function sourceLabel(src) {
-				return src === "codex" ? t("chatgptSourceCodex") : t("chatgptSourceDsh");
-			}
-			function refresh() {
-				return call("chatgpt-auth-status", null).then(function (r) {
-					if (r && r.ok) setStatus(r.value);
-				}).catch(function () { /* host may be mid-load */ });
-			}
-			React.useEffect(function () {
-				refresh();
-				// While a login is in-flight, poll for completion; the host
-				// flips `login.active` to false when it obtains tokens (or,
-				// on failure, records the terminal error in login.error).
-				var timer = setInterval(function () {
-					call("chatgpt-auth-status", null).then(function (r) {
-						if (r && r.ok) {
-							setStatus(r.value);
-							if (!r.value.login || !r.value.login.active) {
-								setBusy(false);
-								if (r.value.login && r.value.login.error) {
-									setError(r.value.login.error);
-								}
-							}
-						}
-					}).catch(function () {});
-				}, 2500);
-				pollRef.current = timer;
-				return function () { clearInterval(timer); };
-			}, []);
-
-			function startLogin() {
-				setError(null);
-				setBusy(true);
-				call("chatgpt-login-start", { proxy: cgProxy || null }).then(function (r) {
-					if (!r || !r.ok) {
-						setBusy(false);
-						setError((r && r.error && r.error.message) || "failed");
-					}
-					// The host returns { verificationUrl, userCode }; refresh
-					// status so the in-flight code renders.
-					return refresh();
-				}).catch(function (e) {
-					setBusy(false);
-					setError(String(e && e.message ? e.message : e));
-				});
-			}
-			function cancelLogin() {
-				call("chatgpt-login-cancel", null).then(function () { setBusy(false); return refresh(); });
-			}
-			function logout() {
-				call("chatgpt-logout", null).then(function () { return refresh(); });
-			}
-			function copyCode(code) {
-				try {
-					navigator.clipboard.writeText(code).then(function () {
-						setCopied(true);
-						setTimeout(function () { setCopied(false); }, 1500);
-					}).catch(function () {});
-				} catch (e) { /* clipboard may be unavailable */ }
-			}
-
-			var login = status && status.login;
-			var inFlight = busy || (login && login.active);
-			var children = [];
-			if (status && status.loggedIn && !(login && login.active)) {
-				children.push(React.createElement("div", { key: "in", className: "dsh-setting-hint" },
-					t("chatgptLoggedIn", { source: sourceLabel(status.source) })
-						+ (status.plan_type ? " · " + t("chatgptPlan", { plan: status.plan_type }) : "")));
-				children.push(React.createElement("button", {
-					key: "out", className: "dsh-setting-reset", type: "button", onClick: logout
-				}, t("chatgptLogout")));
-			} else if (inFlight && login && login.userCode) {
-				children.push(React.createElement("div", { key: "s1", className: "dsh-setting-hint" }, t("chatgptLoginStep1")));
-				children.push(React.createElement("div", { key: "url", className: "dsh-chatgpt-url" },
-					React.createElement("a", { href: login.verificationUrl, target: "_blank", rel: "noreferrer" }, login.verificationUrl)));
-				children.push(React.createElement("div", { key: "s2", className: "dsh-setting-hint", style: { marginTop: "6px" } }, t("chatgptLoginStep2")));
-				children.push(React.createElement("div", { key: "code", className: "dsh-chatgpt-code-row" },
-					React.createElement("span", { className: "dsh-chatgpt-code" }, login.userCode),
-					React.createElement("button", {
-						className: "dsh-setting-reset", type: "button", onClick: function () { copyCode(login.userCode); }
-					}, copied ? t("chatgptCopied") : t("chatgptCopy"))));
-				children.push(React.createElement("div", { key: "wait", className: "dsh-setting-hint", style: { marginTop: "6px" } }, t("chatgptWaiting")));
-				children.push(React.createElement("button", {
-					key: "cancel", className: "dsh-setting-reset", type: "button", style: { marginTop: "6px" }, onClick: cancelLogin
-				}, t("chatgptCancel")));
-			} else {
-				children.push(React.createElement("div", { key: "hint", className: "dsh-setting-hint" }, t("chatgptLoginHint")));
-				if (errorMsg) {
-					children.push(React.createElement("div", { key: "err", className: "dsh-setting-hint", style: { color: "#e5484d" } },
-						t("chatgptLoginFailed", { msg: errorMsg })));
-				}
-				children.push(React.createElement("button", {
-					key: "in", className: "dsh-setting-reset", type: "button", disabled: busy, onClick: startLogin
-				}, t("chatgptLogin")));
-			}
-			return React.createElement("div", { className: "dsh-setting-section" },
-				React.createElement("div", { className: "dsh-setting-title" }, t("chatgptAccount")),
-				React.createElement("div", { className: "dsh-setting-row dsh-chatgpt-row", style: { flexDirection: "column", alignItems: "stretch", gap: "6px" } },
-					children),
-				React.createElement("div", { className: "dsh-setting-row", style: { marginTop: "4px" } },
-					React.createElement("label", { className: "dsh-setting-label" }, t("chatgptProxy")),
-					React.createElement("input", {
-						className: "dsh-setting-input dsh-setting-proxy",
-						type: "text",
-						value: cgProxy,
-						placeholder: t("chatgptProxyDirect"),
-						onChange: function (e) { setProxy(e.target.value); }
-					})),
-				React.createElement("div", { className: "dsh-setting-hint" }, t("chatgptProxyHint")));
-		}
+        function ChatGPTAccount() {
+            return React.createElement("div", { className: "dsh-setting-hint" }, "ChatGPT 只读复用本机 Codex 登录。过期或失效时，请自行在 Codex 重新登录。本插件不会登录、刷新或修改 Codex 凭据。");
+        }
 
 		function SettingsPanel(props) {
 			var specs = props.specs;
@@ -784,11 +551,11 @@
 			// leaving the widget unstyled in the overlay layer's top-left corner.)
 			ctx.effect(function () {
 				var tag = document.createElement("style");
-				tag.dataset.plugin = "dsh-quota-panel";
+				tag.dataset.plugin = "dsh-quota-center";
 				tag.textContent = CSS;
 				document.head.append(tag);
 				var lift = document.createElement("style");
-				lift.dataset.plugin = "dsh-quota-panel";
+				lift.dataset.plugin = "dsh-quota-center";
 				lift.dataset.role = "overlay-lift";
 				lift.textContent = OVERLAY_LIFT_CSS;
 				document.head.append(lift);
@@ -836,7 +603,7 @@
 
 				var startDrag = function (event) {
 					if (event.button !== undefined && event.button !== 0) return;
-					var el = document.getElementById("dsh-quota-panel");
+					var el = document.getElementById("dsh-quota-center");
 					if (!el) return;
 					try { event.currentTarget.setPointerCapture(event.pointerId); } catch (err) {}
 					var rect = el.getBoundingClientRect();
@@ -907,10 +674,13 @@
 						}
 					}).catch(function (error) {
 						setLoadError(String((error && error.message) || error));
-					});
-				};
+                    }).finally(function() { inFlightRef.current = null; });
+                    return inFlightRef.current;
+                };
 
-				var load = function () {
+				var inFlightRef = React.useRef(null);
+                var load = function () {
+                    if (inFlightRef.current) return inFlightRef.current;
 					var proxyPayload = {};
 					if (settings.proxy && typeof settings.proxy === "object") {
 						for (var key in settings.proxy) {
@@ -918,7 +688,7 @@
 							if (typeof v === "string" && v.trim() !== "") proxyPayload[key] = v.trim();
 						}
 					}
-					return call("fetch-all", { proxy: proxyPayload }).then(function (result) {
+					inFlightRef.current = call("fetch-all", { proxy: proxyPayload, hidden: Object.keys(settings.hidden || {}).filter(function(id) { return settings.hidden[id]; }) }).then(function (result) {
 						if (result && result.ok === true && result.value && Array.isArray(result.value.rows)) {
 							var map = {};
 							for (var i = 0; i < result.value.rows.length; i++) {
@@ -926,15 +696,16 @@
 								map[row.id] = row;
 							}
 							setDataById(map);
-							setFetchedAt(result.value.fetchedAt || Date.now());
+							if (result.value.rows.some(function(row) { return !!row.view; })) setFetchedAt(result.value.fetchedAt || Date.now());
 							setLoadError(null);
 						} else {
 							setLoadError(result && result.error ? result.error.message : t("fetchFailed"));
 						}
 					}).catch(function (error) {
 						setLoadError(String((error && error.message) || error));
-					});
-				};
+                    }).finally(function() { inFlightRef.current = null; });
+                    return inFlightRef.current;
+                };
 
 				var refreshAll = function () {
 					if (refreshing) return Promise.resolve();
@@ -951,7 +722,9 @@
 				var effectiveMs = settings.refreshMs !== null && settings.refreshMs !== undefined
 					? settings.refreshMs
 					: (specs ? specs.refreshMs : 60000);
-				var proxyKey = JSON.stringify(settings.proxy || {});
+				var proxyKey = JSON.stringify([settings.proxy || {}, settings.hidden || {}]);
+                var tick = React.useState(0);
+                React.useEffect(function() { return ctx.interval(function() { tick[1](function(n) { return n + 1; }); }, 1000); }, []);
 
 				React.useEffect(function () {
 					return ctx.interval(function () {
@@ -991,11 +764,11 @@
 							pairs.push(React.createElement("span", {
 								key: rspec.id + "-value",
 								className: "dsh-capsule-item state-" + view.status + (view.kind === "usage" ? " dsh-usage" : "")
-							}, view.summary));
+							}, rspec.label.split("（")[0] + " " + view.summary));
 						}
 					}
 						pairs.push(React.createElement("span", { key: "chevron", className: "dsh-capsule-chevron" }, "▾"));
-					return React.createElement("div", { id: "dsh-quota-panel", style: panelStyle },
+					return React.createElement("div", { id: "dsh-quota-center", style: panelStyle },
 						React.createElement("button", Object.assign({}, dragHandlers, {
 							id: "dsh-quota-capsule",
 							type: "button",
@@ -1031,11 +804,11 @@
 					if (fetchedAt !== null) {
 						bodyChildren.push(React.createElement("div", { key: "at", className: "dsh-quota-divider" }));
 						bodyChildren.push(React.createElement("div", { key: "at-text", className: "dsh-usage-caption" },
-							t("updatedAt", { time: new Date(fetchedAt).toLocaleTimeString() })));
+							t("updatedAt", { time: new Date(fetchedAt).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) + " 北京时间" })));
 					}
 				}
 
-				return React.createElement("div", { id: "dsh-quota-panel", style: panelStyle },
+				return React.createElement("div", { id: "dsh-quota-center", style: panelStyle },
 					React.createElement("div", { id: "dsh-quota-card" },
 						React.createElement("div", Object.assign({}, dragHandlers, { onPointerDown: headerDrag, className: "dsh-quota-header" }),
 							React.createElement("div", { className: "dsh-quota-title" }, t("title")),
@@ -1065,10 +838,10 @@
 
 			ctx.effect(function () {
 				return ctx.locale.register(NS, DICT);
-			}, "dsh-quota-panel: copy dictionaries");
+			}, "dsh-quota-center: copy dictionaries");
 			const t = ctx.locale.bind(NS);
 			ctx.slots.inject("shell.overlay", () => ctx.slots.register(
-				{ name: "shell.overlay", id: "dsh-quota-panel", order: 100, label: () => t("title"), locale: NS },
+				{ name: "shell.overlay", id: "dsh-quota-center", order: 100, label: () => t("title"), locale: NS },
 				(props: any) => React.createElement(QuotaPanel, { t: props.t })
 			));
 		}
@@ -1078,3 +851,4 @@
 		return module.exports;
 	}
 });
+

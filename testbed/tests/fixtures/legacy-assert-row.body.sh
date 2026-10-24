@@ -1,6 +1,6 @@
 # 由 legacy-assert-row.sh 用 bash 执行：真实 entrypoint 定义 + 初版（宽松）assert_plugin_row。
 # 初版问题：name 用任意缩进匹配、每个顶层项不重置状态 ⇒ 其它插件 config 里的
-# `    name: dsh-quota-panel` 会被误判成"插件行"。
+# `    name: dsh-quota-center` 会被误判成"插件行"。
 printf 'main () { :; }\n'
 cat "$REAL_ENTRYPOINT"
 cat <<'LEGACY'

@@ -13,7 +13,7 @@ const realHelper = join(testbedDir, 'probes/rpc-contract.mjs')
 const syntheticToken = 'SYNTHETIC_STARTUP_TOKEN'
 const syntheticLogToken = 'SYNTHETIC_LOG_TOKEN'
 const responseMarker = 'SYNTHETIC_RESPONSE_BODY_MUST_NOT_LEAK'
-const advertisedClient = '/plugins/??dsh-quota-panel/client.js&rev=quota-real-42'
+const advertisedClient = '/plugins/??dsh-quota-center/client.js&rev=quota-real-42'
 
 function executable(path, content) {
   writeFileSync(path, content)
@@ -39,7 +39,7 @@ function makeFixture(t, scenario = 'success') {
   // The 0.1.5 host advertises the absolute path and 0.1.7 the document-relative
   // reference; both carry the HTML-escaped ampersand a real boot script uses.
   const bootClientUrl = (scenario === 'relative-boot-url' ? advertisedClient.slice(1) : advertisedClient).replace('&', '&amp;')
-  writeFileSync(boot, `<!doctype html><script>window.__DSH_BOOT__ = {"meta":{"shape":"representative-real-boot"},"plugins":[{"url":"${bootClientUrl}","platform":"web","enabled":true,"id":"dsh-quota-panel"}]};</script>\n`)
+  writeFileSync(boot, `<!doctype html><script>window.__DSH_BOOT__ = {"meta":{"shape":"representative-real-boot"},"plugins":[{"url":"${bootClientUrl}","platform":"web","enabled":true,"id":"dsh-quota-center"}]};</script>\n`)
   writeFileSync(specs, scenario === 'bad-specs'
     ? JSON.stringify({ type: 'server-response', rpcId: 'wrong-id', result: { ok: false, error: { message: responseMarker } } })
     : JSON.stringify({ type: 'server-response', rpcId: 'testbed-probe', result: { ok: true, value: { rows: [], refreshMs: 60000 } } }))
@@ -96,11 +96,11 @@ function makeFixture(t, scenario = 'success') {
     '    if [ "${STUB_CURL_SCENARIO:-success}" = total-timeout ]; then printf 000; exit 28; fi',
     '    if [ "${STUB_CURL_SCENARIO:-success}" = auth-forbidden ]; then write_body forbidden; printf 403; exit 0; fi',
     '    [ -z "$out" ] || cp "$STUB_BOOT_FILE" "$out"; printf 200; exit 0 ;;',
-    '  "http://127.0.0.1:${PORT_UNDER_TEST}/plugins/??dsh-quota-panel/client.js&rev=quota-real-42")',
+    '  "http://127.0.0.1:${PORT_UNDER_TEST}/plugins/??dsh-quota-center/client.js&rev=quota-real-42")',
     '    write_body "export default true"',
     '    if [ "${STUB_CURL_SCENARIO:-success}" = die-after-client ]; then kill -KILL "$(cat "$STUB_DSH_PID_FILE")" 2>/dev/null || true; fi',
     '    printf 200; exit 0 ;;',
-    '  "http://127.0.0.1:${PORT_UNDER_TEST}/api/dsh-quota-panel/specs")',
+    '  "http://127.0.0.1:${PORT_UNDER_TEST}/api/dsh-quota-center/specs")',
     '    if [ "${STUB_CURL_SCENARIO:-success}" = die-on-missing-route ]; then kill -KILL "$(cat "$STUB_DSH_PID_FILE")" 2>/dev/null || true; write_body "$STUB_RESPONSE_MARKER"; printf 405; exit 0; fi',
     '    if [ "${STUB_CURL_SCENARIO:-success}" = route-missing ]; then write_body "$STUB_RESPONSE_MARKER"; printf 405; exit 0; fi',
     '    if [ "${STUB_CURL_SCENARIO:-success}" = specs-forbidden ]; then write_body forbidden; printf 403; exit 0; fi',
@@ -115,7 +115,7 @@ function makeFixture(t, scenario = 'success') {
     "import { appendFileSync } from 'node:fs'",
     "import { spawnSync } from 'node:child_process'",
     "appendFileSync(process.env.STUB_HELPER_TRACE, JSON.stringify(process.argv.slice(2)) + '\\n')",
-    "if (process.env.STUB_HELPER_FETCH_ALL === '1' && process.argv[2] === 'contract') { process.stdout.write(JSON.stringify({ route: '/api/dsh-quota-panel/fetch-all', method: 'dsh-quota-panel/fetch-all' }) + '\\n'); process.exit(0) }",
+    "if (process.env.STUB_HELPER_FETCH_ALL === '1' && process.argv[2] === 'contract') { process.stdout.write(JSON.stringify({ route: '/api/dsh-quota-center/fetch-all', method: 'dsh-quota-center/fetch-all' }) + '\\n'); process.exit(0) }",
     "if (process.env.STUB_HELPER_HANG === process.argv[2]) await new Promise(resolve => setTimeout(resolve, 5_000))",
     'const result = spawnSync(process.execPath, [process.env.REAL_CONTRACT_HELPER, ...process.argv.slice(2)], { stdio: \'inherit\' })',
     'process.exit(result.status ?? 1)',
@@ -232,20 +232,20 @@ test('rpc-contract CLI exposes only safe contract, client URL, validation summar
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const boot = join(dir, 'boot.html')
   const body = join(dir, 'body.json')
-  writeFileSync(boot, '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-panel","url":"/plugins/??dsh-quota-panel/client.js&amp;rev=cli-1"}]}</script>')
+  writeFileSync(boot, '<script>window.__DSH_BOOT__={"plugins":[{"id":"dsh-quota-center","url":"/plugins/??dsh-quota-center/client.js&amp;rev=cli-1"}]}</script>')
   writeFileSync(body, JSON.stringify({ type: 'server-response', rpcId: 'cli-probe', result: { ok: true, value: { rows: [], refreshMs: 60000 } } }))
 
   const contract = spawnSync(process.execPath, [realHelper, 'contract', repoRoot], { encoding: 'utf8' })
   assert.equal(contract.status, 0, contract.stderr)
   assert.deepEqual(JSON.parse(contract.stdout), {
-    route: '/api/dsh-quota-panel/specs',
-    method: 'dsh-quota-panel/specs',
+    route: '/api/dsh-quota-center/specs',
+    method: 'dsh-quota-center/specs',
   })
   assert.doesNotMatch(contract.stdout, /fetch-all/)
 
   const client = spawnSync(process.execPath, [realHelper, 'client-url', boot], { encoding: 'utf8' })
   assert.equal(client.status, 0, client.stderr)
-  assert.equal(client.stdout, '/plugins/??dsh-quota-panel/client.js&rev=cli-1\n')
+  assert.equal(client.stdout, '/plugins/??dsh-quota-center/client.js&rev=cli-1\n')
 
   const validated = spawnSync(process.execPath, [realHelper, 'validate-specs', body, 'cli-probe', '60000'], { encoding: 'utf8' })
   assert.equal(validated.status, 0, validated.stderr)
@@ -268,15 +268,15 @@ test('real shell flow requires --no-open, authenticates, GETs advertised revisio
   assert.ok(calls.every(([, , connect, max]) => connect === '1' && max === '1'), 'every curl call must set connect and total timeouts')
   assert.ok(calls.some(([method, url, , , follow]) => method === 'GET' && url.includes('/?token=') && follow === '1'), 'token exchange must follow the 303 redirect to a final 200 and cookie')
   assert.ok(calls.some(([method, url]) => method === 'GET' && url === `http://127.0.0.1:31999${advertisedClient}`), 'advertised revisioned client URL must be actually fetched')
-  const specsCall = calls.find(([method, url]) => method === 'POST' && url === 'http://127.0.0.1:31999/api/dsh-quota-panel/specs')
+  const specsCall = calls.find(([method, url]) => method === 'POST' && url === 'http://127.0.0.1:31999/api/dsh-quota-center/specs')
   assert.ok(specsCall, 'dynamic specs route must be POSTed')
   assert.deepEqual(JSON.parse(specsCall[5]), {
     type: 'client-request',
     rpcId: 'testbed-probe',
-    method: 'dsh-quota-panel/specs',
+    method: 'dsh-quota-center/specs',
     payload: null,
   })
-  assert.notEqual(JSON.parse(specsCall[5]).method, 'dsh-quota-panel/fetch-all')
+  assert.notEqual(JSON.parse(specsCall[5]).method, 'dsh-quota-center/fetch-all')
   assert.deepEqual(helperModes(result), ['contract', 'client-url', 'validate-specs'])
   assert.match(result.output, /L2 全部通过/)
   assert.doesNotMatch(result.output, new RegExp(`${syntheticToken}|${syntheticLogToken}`))
@@ -426,7 +426,7 @@ test('missing specs route fails only after auth, home, and revisioned client pas
   const authIndex = calls.findIndex(([method, url, , , follow]) => method === 'GET' && url.includes('/?token=') && follow === '1')
   const homeIndex = calls.findIndex(([method, url]) => method === 'GET' && url === 'http://127.0.0.1:31999/')
   const clientIndex = calls.findIndex(([method, url]) => method === 'GET' && url === `http://127.0.0.1:31999${advertisedClient}`)
-  const specsIndex = calls.findIndex(([method, url]) => method === 'POST' && url === 'http://127.0.0.1:31999/api/dsh-quota-panel/specs')
+  const specsIndex = calls.findIndex(([method, url]) => method === 'POST' && url === 'http://127.0.0.1:31999/api/dsh-quota-center/specs')
   assert.ok(authIndex >= 0 && authIndex < homeIndex, 'auth redirect and cookie must complete before the home probe')
   assert.ok(homeIndex < clientIndex && clientIndex < specsIndex, 'home and advertised client must pass before the missing route is exercised')
   assert.match(result.output, /路由缺失.*405|405.*路由缺失/)

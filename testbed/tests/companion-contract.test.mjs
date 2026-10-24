@@ -21,14 +21,14 @@ const testbedDir = fileURLToPath(new URL('../', import.meta.url))
 const probe = join(testbedDir, 'probes/companion-contract.mjs')
 const EXPECTED_CONTRACT = {
   self: {
-    package: { name: 'dsh-quota-panel', version: '0.9.2-rc.4' },
-    clientId: 'dsh-quota-panel',
+    package: { name: 'dsh-quota-center', version: '0.9.2-rc.4' },
+    clientId: 'dsh-quota-center',
     rpc: {
-      route: '/api/dsh-quota-panel/specs',
+      route: '/api/dsh-quota-center/specs',
       request: {
         type: 'client-request',
         rpcId: 'combo-self',
-        method: 'dsh-quota-panel/specs',
+        method: 'dsh-quota-center/specs',
         payload: null,
       },
       expect: {
@@ -160,7 +160,7 @@ for (const [name, plugins, assignment] of [
   [
     'real globalThis boot order',
     [
-      client('dsh-quota-panel', '/plugins/??dsh-quota-panel/client.js&rev=self-1'),
+      client('dsh-quota-center', '/plugins/??dsh-quota-center/client.js&rev=self-1'),
       client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer-1'),
     ],
     'globalThis["__DSH_BOOT__"]',
@@ -169,14 +169,14 @@ for (const [name, plugins, assignment] of [
     'swapped window boot order',
     [
       client('dsh-llm-newapi', '/plugins/??dsh-llm-newapi/client.js&amp;rev=peer-2'),
-      client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js?rev=self-2'),
+      client('dsh-quota-center', '/plugins/dsh-quota-center/client.js?rev=self-2'),
     ],
     'window.__DSH_BOOT__',
   ],
 ]) {
   test(`comboClientUrlsFromBootHtml returns contract order for ${name}`, () => {
     assert.deepEqual(comboClientUrlsFromBootHtml(bootHtml(plugins, assignment)), [
-      { id: 'dsh-quota-panel', url: plugins.find(row => row.id === 'dsh-quota-panel').url.replaceAll('&amp;', '&') },
+      { id: 'dsh-quota-center', url: plugins.find(row => row.id === 'dsh-quota-center').url.replaceAll('&amp;', '&') },
       { id: 'dsh-llm-newapi', url: plugins.find(row => row.id === 'dsh-llm-newapi').url.replaceAll('&amp;', '&') },
     ])
   })
@@ -188,18 +188,18 @@ for (const [name, plugins, assignment] of [
 // still curl `${origin}${path}` on either host line.
 test('comboClientUrlsFromBootHtml resolves the 0.1.7 document-relative references to absolute paths', () => {
   const plugins = [
-    client('dsh-quota-panel', 'plugins/??dsh-quota-panel/client.js&rev=self-3'),
+    client('dsh-quota-center', 'plugins/??dsh-quota-center/client.js&rev=self-3'),
     client('dsh-llm-newapi', 'plugins/dsh-llm-newapi/client.js?rev=peer-3'),
   ]
   assert.deepEqual(comboClientUrlsFromBootHtml(bootHtml(plugins)), [
-    { id: 'dsh-quota-panel', url: '/plugins/??dsh-quota-panel/client.js&rev=self-3' },
+    { id: 'dsh-quota-center', url: '/plugins/??dsh-quota-center/client.js&rev=self-3' },
     { id: 'dsh-llm-newapi', url: '/plugins/dsh-llm-newapi/client.js?rev=peer-3' },
   ])
 })
 
 test('comboClientUrlsFromBootHtml rejects a document-relative authority without echoing the URL', () => {
   const plugins = [
-    client('dsh-quota-panel', '//evil.invalid/plugins/??dsh-quota-panel/client.js&rev=SYNTHETIC_RELATIVE_AUTHORITY'),
+    client('dsh-quota-center', '//evil.invalid/plugins/??dsh-quota-center/client.js&rev=SYNTHETIC_RELATIVE_AUTHORITY'),
     client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer-4'),
   ]
   assert.throws(
@@ -259,14 +259,14 @@ test('comboClientUrlsFromBootHtml consumes a validated custom contract shape', (
 })
 
 for (const [name, plugins, marker] of [
-  ['missing peer', [client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js?rev=self')], 'SYNTHETIC_MISSING'],
-  ['duplicate self', [client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js?rev=one'), client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js?rev=two'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_DUPLICATE'],
-  ['cross package', [client('dsh-quota-panel', '/plugins/dsh-llm-newapi/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_CROSS'],
-  ['fragment-only revision', [client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js#rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_FRAGMENT'],
-  ['pathname amp revision', [client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js&rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_PATH_AMP'],
-  ['raw backslash', [client('dsh-quota-panel', '/plugins\\dsh-quota-panel/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_BACKSLASH'],
-  ['absolute URL', [client('dsh-quota-panel', 'http://127.0.0.1/plugins/dsh-quota-panel/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_ABSOLUTE'],
-  ['protocol-relative URL', [client('dsh-quota-panel', '//evil.invalid/plugins/dsh-quota-panel/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_PROTOCOL'],
+  ['missing peer', [client('dsh-quota-center', '/plugins/dsh-quota-center/client.js?rev=self')], 'SYNTHETIC_MISSING'],
+  ['duplicate self', [client('dsh-quota-center', '/plugins/dsh-quota-center/client.js?rev=one'), client('dsh-quota-center', '/plugins/dsh-quota-center/client.js?rev=two'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_DUPLICATE'],
+  ['cross package', [client('dsh-quota-center', '/plugins/dsh-llm-newapi/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_CROSS'],
+  ['fragment-only revision', [client('dsh-quota-center', '/plugins/dsh-quota-center/client.js#rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_FRAGMENT'],
+  ['pathname amp revision', [client('dsh-quota-center', '/plugins/dsh-quota-center/client.js&rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_PATH_AMP'],
+  ['raw backslash', [client('dsh-quota-center', '/plugins\\dsh-quota-center/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_BACKSLASH'],
+  ['absolute URL', [client('dsh-quota-center', 'http://127.0.0.1/plugins/dsh-quota-center/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_ABSOLUTE'],
+  ['protocol-relative URL', [client('dsh-quota-center', '//evil.invalid/plugins/dsh-quota-center/client.js?rev=self'), client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer')], 'SYNTHETIC_PROTOCOL'],
 ]) {
   test(`comboClientUrlsFromBootHtml rejects ${name} with a fixed non-echoing error`, () => {
     const html = `${bootHtml(plugins)}<!--${marker}-->`
@@ -277,7 +277,7 @@ for (const [name, plugins, marker] of [
 test('clients CLI accepts a file and stdin and emits only safe ordered JSON', t => {
   const html = bootHtml([
     client('dsh-llm-newapi', '/plugins/dsh-llm-newapi/client.js?rev=peer-cli'),
-    client('dsh-quota-panel', '/plugins/dsh-quota-panel/client.js?rev=self-cli'),
+    client('dsh-quota-center', '/plugins/dsh-quota-center/client.js?rev=self-cli'),
   ])
   const files = tempFiles(t, { html })
   for (const [path, input] of [[files.html, undefined], ['-', html]]) {
@@ -285,7 +285,7 @@ test('clients CLI accepts a file and stdin and emits only safe ordered JSON', t 
     assert.equal(result.status, 0, result.stderr)
     assert.equal(result.stderr, '')
     assert.deepEqual(JSON.parse(result.stdout), [
-      { id: 'dsh-quota-panel', url: '/plugins/dsh-quota-panel/client.js?rev=self-cli' },
+      { id: 'dsh-quota-center', url: '/plugins/dsh-quota-center/client.js?rev=self-cli' },
       { id: 'dsh-llm-newapi', url: '/plugins/dsh-llm-newapi/client.js?rev=peer-cli' },
     ])
   }

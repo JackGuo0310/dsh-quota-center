@@ -23,5 +23,5 @@ const name = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i
 if (rows.some(row => typeof row !== 'string' || !name.test(row))) {
   fail('bundles entries must be package names')
 }
-const excluded = new Set(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-quota-panel'])
+const excluded = new Set(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-quota-center'])
 for (const row of rows) if (!excluded.has(row)) console.log(row)
