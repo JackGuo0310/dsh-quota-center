@@ -45,6 +45,12 @@
     },
     "@deepseek-ai/dsh-credentials": {
       "optional": true
+    },
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
     }
   },
   "devDependencies": {
