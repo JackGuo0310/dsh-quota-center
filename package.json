@@ -22,12 +22,12 @@
     "check": "npm run build && npm test"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "~4.0.5",
-    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-cordis-client-runner": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
+    "@deepseek-ai/cordis": ">=4.0.5",
+    "@deepseek-ai/dsh-client-connection": ">=0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-locale": ">=0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": ">=0.2.1-rc.2",
+    "@deepseek-ai/dsh-cordis-client-runner": ">=0.2.1-rc.2",
+    "@deepseek-ai/dsh-credentials": ">=0.2.1-rc.2",
     "react": "*"
   },
   "peerDependenciesMeta": {

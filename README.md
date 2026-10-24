@@ -13,7 +13,7 @@ ChatGPT 订阅额度与 OpenAI API 余额不同；OpenCode Zen 钱包暂不支�
 
 ## 安装
 
-当前适配 DSH **0.2.1-rc.2**，需要 Node.js 22 或更高版本。
+最低支持 DSH **0.2.1-rc.2**（peer 范围 `>=0.2.1-rc.2`，已实测该版本），需要 Node.js 22 或更高版本。
 
 本机开发安装：
 
@@ -51,7 +51,7 @@ GitHub 安装直接使用仓库提交的 `lib/`，无需修改 DSH 全局目录�
 GitHub 安装更新（发布后）：
 
 ```powershell
-dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#main"
+dsh plugin --profile web update dsh-quota-center --latest
 ```
 
 本地 link 更新：在源码目录修改、运行 `npm run check`，然后重新启动 DSH 以确保宿主代码重新载入。link 路径应保留。
