@@ -1,3 +1,4 @@
+import { readOpenCodeGoKey } from './adapters/opencode-auth.js';
 /**
  * dsh-quota-center — provider quota card for the dsh web surface.
  *
@@ -104,8 +105,7 @@ export const RPC_METHOD_PREFIX = 'dsh-quota-center';
 /** RPC endpoints served by the host half. */
 export const RPC_ENDPOINTS = [
 	'specs',
-	'fetch-all',
-	
+	'fetch-all'
 ] as const;
 
 /** Method name the browser half sends for one endpoint. */
@@ -352,7 +352,7 @@ async function fetchChatGPTUsage(accessToken: string, accountId: string | undefi
 		throw err;
 	}
 	if (body === null) throw new Error(`ChatGPT: HTTP ${res.status} non-JSON response`);
-	if (!res.ok) throw new Error(`ChatGPT: HTTP ${res.status}: ${body?.detail || body?.error || 'unknown error'}`);
+	if (!res.ok) throw new Error(`ChatGPT: HTTP ${res.status}${res.status === 429 ? '，请求频繁，请稍后刷新' : ''}`);
 	return body;
 }
 
@@ -901,7 +901,9 @@ function proxiedGetJson(targetUrl: string, proxyUrl: string, headers: Record<str
 		const proxy = new URL(proxyUrl);
 		const proxyTls = proxy.protocol === 'https:';
 		const proxyPort = Number(proxy.port) || (proxyTls ? 443 : 80);
-		const proxyHeaders = { ...headers };
+		// CONNECT is visible to the proxy; upstream credentials belong only
+		// inside the TLS tunnel, never on the CONNECT handshake.
+		const proxyHeaders: Record<string, string> = {};
 		if (proxy.username || proxy.password) {
 			const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
 			proxyHeaders['proxy-authorization'] = `Basic ${Buffer.from(auth).toString('base64')}`;
@@ -989,7 +991,7 @@ function proxiedGetJson(targetUrl: string, proxyUrl: string, headers: Record<str
 				host: target.hostname,
 				port: proxyPort,
 				path: targetUrl,
-				headers: reqHeaders
+				headers: { ...reqHeaders, ...proxyHeaders }
 			}));
 		}
 	});
@@ -1211,9 +1213,10 @@ async function fetchRow(ctx, provider, proxies, clientProxyUrl) {
 				return { id: provider.id, error: String((e && (e as Error).message) || e) };
 			}
 		}
-		const hit = await ctx.credentials.resolve(provider.credential);
+		const hit = await ctx.credentials.resolve(provider.credential)
+            || (provider.id === 'opencode-go' ? { value: await readOpenCodeGoKey() } : undefined);
 		if (!hit || typeof hit.value !== 'string' || hit.value.length === 0) {
-			return { id: provider.id, error: `${provider.credential} is not configured` };
+			return { id: provider.id, error: provider.id === 'opencode-go' ? '未配置 OpenCode Go 凭据：请在 OpenCode 连接 Go，或配置 OPENCODE_GO_API_KEY' : `${provider.credential} is not configured` };
 		}
 		// ── Volcengine Ark: AK/SK signed OpenAPI, not Bearer ──────
 		//
@@ -1287,6 +1290,7 @@ async function fetchRow(ctx, provider, proxies, clientProxyUrl) {
 		const upstream = await getJson(provider.endpoint, headers, proxyUrl, UPSTREAM_TIMEOUT_MS);
 		const body = await upstream.json().catch(() => null);
 		if (body === null) return { id: provider.id, error: `HTTP ${upstream.status}: non-JSON response` };
+		if (!upstream.ok) return { id: provider.id, error: `HTTP ${upstream.status}${upstream.status === 429 ? '，请求频繁，请稍后刷新' : ''}` };
 		const outcome = adaptRow(provider.format, body);
 		if (!upstream.ok && outcome.error === undefined) {
 			return { id: provider.id, error: `HTTP ${upstream.status}`, view: outcome.view };

@@ -381,7 +381,7 @@
                     body.push(React.createElement("div", { key: "track-" + i, className: "dsh-progress" }, React.createElement("div", { className: "dsh-progress-fill", style: { width: lane.remaining + "%" } })));
                 });
                 if (view.caption) body.push(React.createElement("div", { key: "cap", className: "dsh-usage-caption" }, view.caption));
-            } else if (view.kind === "usage") {
+            } else if (view.kind === "usage" && view.usageText) {
 				body.push(React.createElement("div", { key: "usage", className: "dsh-usage-values" }, view.usageText));
 				body.push(React.createElement("div", { key: "track", className: "dsh-progress" },
 					React.createElement("div", { className: "dsh-progress-fill", style: { width: view.barPercent + "%" } })));
@@ -406,7 +406,7 @@
         }
 
 		function SettingsPanel(props) {
-			var specs = props.specs;
+			var specs = props.specs || { rows: [], refreshMs: 60000 };
 			var settings = props.settings;
 			var onChange = props.onChange;
 			var onReset = props.onReset;
@@ -674,8 +674,7 @@
 						}
 					}).catch(function (error) {
 						setLoadError(String((error && error.message) || error));
-                    }).finally(function() { inFlightRef.current = null; });
-                    return inFlightRef.current;
+                    });
                 };
 
 				var inFlightRef = React.useRef(null);

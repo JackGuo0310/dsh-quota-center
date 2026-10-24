@@ -19,7 +19,9 @@ import { dirname, join } from 'node:path';
 // subscription row (which auto-discovers ~/.codex/auth.json) does not leak
 // the developer's real Codex auth into the host-side test environment.
 // ChatGPT-specific tests below override CODEX_HOME with a fixture dir.
-process.env.CODEX_HOME = process.env.CODEX_HOME || mkdtempSync(join(tmpdir(), 'dsh-qp-test-'));
+process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'dsh-qp-test-'));
+
+process.env.XDG_DATA_HOME = mkdtempSync(join(tmpdir(), 'dsh-qc-opencode-'));
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const plugin = await import(pathToFileURL(join(root, 'lib/index.js')).href);
@@ -1189,7 +1191,7 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 {
 	const patched = clientSource.replace(
 		'exports.apply = apply;',
-		'exports.__rowView = rowView;\nexports.__clampPos = clampPos;\nexports.apply = apply;'
+		'exports.__SettingsPanel = SettingsPanel;\nexports.__rowView = rowView;\nexports.__clampPos = clampPos;\nexports.apply = apply;'
 	);
 	const handoffs2 = [];
 	const sandbox2 = {
@@ -1209,6 +1211,9 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 		throw new Error(`unexpected require: ${spec}`);
 	});
 	const rowView = factoryExports.__rowView;
+    let settingsSafe = true;
+    try { factoryExports.__SettingsPanel({ specs: null, settings: { hidden: {}, warn: {}, proxy: {} }, t: (key) => key }); } catch { settingsSafe = false; }
+    check('B: settings tolerate missing specs after RPC failure', settingsSafe);
 	const t2 = (key) => key;
 	const baseSpec = { kind: 'usage', windowLabels: {}, warnPercent: 70, errorPercent: 90 };
 	const entry2 = { view: { kind: 'usage', windows: {

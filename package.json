@@ -18,7 +18,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "prepack": "npm run build",
-    "test": "node scripts/test-page-script.mjs",
+    "test": "node scripts/test-page-script.mjs && node --test scripts/test-center.mjs",
     "check": "npm run build && npm test"
   },
   "peerDependencies": {
