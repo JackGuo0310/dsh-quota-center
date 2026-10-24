@@ -1,7 +1,7 @@
 {
   "name": "dsh-quota-center",
   "description": "DSH 统一额度中心：ChatGPT 订阅额度、DeepSeek 余额和 OpenCode Go 配额",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

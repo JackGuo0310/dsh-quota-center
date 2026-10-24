@@ -25,10 +25,10 @@ dsh plugin --profile web add "link:D:/Github/dsh-quota-center"
 dsh web
 ```
 
-GitHub 发布后安装：
+从 GitHub 安装固定版本：
 
 ```powershell
-dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center"
+dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.0"
 ```
 
 安装后重新启动 `dsh web`。若 DSH 已自动发现插件，可以直接刷新页面。
@@ -48,11 +48,13 @@ GitHub 安装直接使用仓库提交的 `lib/`，无需修改 DSH 全局目录�
 
 ## 更新与卸载
 
-GitHub 安装更新（发布后）：
+安装或切换到指定标签（也可替换本地 link）：
 
 ```powershell
-dsh plugin --profile web update dsh-quota-center --latest
+dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.0"
 ```
+
+更新到后续版本时，将上述 `v1.0.0` 替换为对应发布标签，再重启 DSH。标题右侧显示当前安装包的版本号，由构建时读取 `package.json` 自动生成，不查询远端最新版本。
 
 本地 link 更新：在源码目录修改、运行 `npm run check`，然后重新启动 DSH 以确保宿主代码重新载入。link 路径应保留。
 

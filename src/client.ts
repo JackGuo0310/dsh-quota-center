@@ -31,6 +31,7 @@
 
 		// Connection's authenticated /api channel; the host half mounts one exact
 		// Fetch route per endpoint under the dsh-quota-center method namespace.
+		var VERSION = "__DSH_QUOTA_VERSION__";
 		var CHANNEL = "/api";
 		var RPC_METHOD_PREFIX = "dsh-quota-center";
 		var STORAGE_KEY = "dsh-quota-center:settings";
@@ -169,7 +170,8 @@
 			'#dsh-quota-card{width:300px;max-width:calc(100vw - 36px);max-height:min(calc(100dvh - 36px),var(--dsh-quota-available-height,100dvh));margin-top:8px;padding:14px 16px 15px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:16px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv3,0 8px 26px rgba(15,17,21,.1),0 2px 6px rgba(15,17,21,.06));box-sizing:border-box}',
 			'#dsh-quota-card .dsh-quota-header{flex-shrink:0;z-index:1;display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:13px;background:var(--dsw-alias-bg-layer-2,#fff);cursor:grab;user-select:none;touch-action:none}',
 			'#dsh-quota-card .dsh-quota-content{min-height:0;overflow-y:auto;overscroll-behavior:contain}',
-			'#dsh-quota-card .dsh-quota-title{color:var(--dsw-alias-label-primary,#1b1b1c);font-size:14px;font-weight:600;line-height:20px}',
+			'#dsh-quota-card .dsh-quota-title{display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--dsw-alias-label-primary,#1b1b1c);font-size:14px;font-weight:600;line-height:20px}',
+			'#dsh-quota-card .dsh-quota-version{font-size:11px;font-weight:400;color:var(--dsw-alias-label-tertiary,#818590)}',
 			'#dsh-quota-card .dsh-quota-actions{display:flex;gap:4px;margin:-3px -4px -3px 0}',
 			'#dsh-quota-card .dsh-quota-icon{display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:8px;color:var(--dsw-alias-label-secondary,#61666b);background:transparent;font-size:16px;line-height:1;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}',
 			'#dsh-quota-card .dsh-quota-icon:hover{color:var(--dsw-alias-label-primary,#1b1b1c);background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}',
@@ -826,7 +828,8 @@
 				return React.createElement("div", { id: "dsh-quota-center", style: panelStyle },
 					React.createElement("div", { id: "dsh-quota-card" },
 						React.createElement("div", Object.assign({}, dragHandlers, { onPointerDown: headerDrag, className: "dsh-quota-header" }),
-							React.createElement("div", { className: "dsh-quota-title" }, t("title")),
+							React.createElement("div", { className: "dsh-quota-title" }, t("title"),
+                                React.createElement("span", { className: "dsh-quota-version", title: "当前安装版本" }, VERSION)),
 							React.createElement("div", { className: "dsh-quota-actions" },
 								React.createElement("button", {
 									className: "dsh-quota-icon" + (refreshing ? " is-loading" : ""),
