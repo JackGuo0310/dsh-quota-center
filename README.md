@@ -28,7 +28,7 @@ dsh web
 从 GitHub 安装固定版本：
 
 ```powershell
-dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.0"
+dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.1"
 ```
 
 安装后重新启动 `dsh web`。若 DSH 已自动发现插件，可以直接刷新页面。
@@ -42,6 +42,8 @@ GitHub 安装直接使用仓库提交的 `lib/`，无需修改 DSH 全局目录�
 
 点击面板的 **⚙**，可开关单个服务商、设置刷新间隔、预警阈值和每家独立的 HTTP/HTTPS 代理。默认每 60 秒刷新；隐藏页面暂停查询；手动刷新不并发重复请求。代理只接受 `http://`、`https://`。
 
+在 **胶囊显示 → 收起态布局** 中可选择 **单行**（默认）或 **多行（每供应商一行）**。多行模式会缩小收起态浮窗宽度，设置立即生效并保存在当前浏览器；恢复默认会回到单行。
+
 面板跟随 DSH 浅色/深色主题，支持拖动。展开后点击面板外部或将键盘焦点移出，会自动收起；顶部按钮固定保留，设置内容单独滚动。设置保存在当前浏览器，日期时间使用北京时间。API Key、OAuth Token 不进入浏览器。
 
 代理 URL 是浏览器设置，建议使用无密码的本机代理。需要代理密码时，通过宿主配置的 `proxies` 命名映射配置，勿将密码填进前端。
@@ -51,10 +53,10 @@ GitHub 安装直接使用仓库提交的 `lib/`，无需修改 DSH 全局目录�
 安装或切换到指定标签（也可替换本地 link）：
 
 ```powershell
-dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.0"
+dsh plugin --profile web add "github:JackGuo0310/dsh-quota-center#v1.0.1"
 ```
 
-更新到后续版本时，将上述 `v1.0.0` 替换为对应发布标签，再重启 DSH。标题右侧显示当前安装包的版本号，由构建时读取 `package.json` 自动生成，不查询远端最新版本。
+更新到后续版本时，将上述 `v1.0.1` 替换为对应发布标签，再重启 DSH。标题右侧显示当前安装包的版本号，由构建时读取 `package.json` 自动生成，不查询远端最新版本。
 
 本地 link 更新：在源码目录修改、运行 `npm run check`，然后重新启动 DSH 以确保宿主代码重新载入。link 路径应保留。
 

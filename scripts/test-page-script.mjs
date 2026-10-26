@@ -1307,6 +1307,173 @@ check('B: renderer returns element', element && typeof element.type === 'functio
 		return b.x === 992 && b.y === 792 && c.x === 992 && c.y === 792;
 	})());
 	check('B: drag stores the pointer-grab offset from the bottom-right corner', clientSource.includes('baseRight') && clientSource.includes('baseBottom') && clientSource.includes('anchorRight') && clientSource.includes('anchorBottom'));
+	check('B: tall vertical capsule remains fully visible at top and left drag edges', (() => {
+		const f = factoryExports.__clampPos;
+		const upperLeft = f(-50, -50, 1000, 800, 180, 240);
+		const lowerRight = f(5000, 5000, 1000, 800, 180, 240);
+		const unchanged = f(600, 500, 1000, 800, 180, 240);
+		return upperLeft.x === 188 && upperLeft.y === 248 && lowerRight.x === 992 && lowerRight.y === 792
+			&& unchanged.x === 600 && unchanged.y === 500;
+	})());
+	check('B: capsule larger than viewport still clamps to a reachable bottom-right corner', (() => {
+		const p = factoryExports.__clampPos(0, 0, 150, 100, 180, 240);
+		return p.x === 142 && p.y === 92;
+	})());
+}
+
+// ---------- B3: capsule layout settings + rendered provider/dot ownership ----------
+// Keep this in the existing VM harness: no DOM or React runtime dependency.
+// Effects are deliberately inert; the first two state slots stand in for
+// completed specs/fetch-all RPCs. Event handlers and settings persistence are real.
+{
+	const storageKey = 'dsh-quota-center:settings';
+	const fixtureSpecs = { refreshMs: 60000, rows: [
+		{ id: 'calm', label: 'Calm', kind: 'usage', warnPercent: 70, errorPercent: 90 },
+		{ id: 'busy', label: 'Busy', kind: 'usage', warnPercent: 70, errorPercent: 90 }
+	] };
+	const fixtureData = {
+		calm: { view: { kind: 'usage', windows: { rolling: { percent: 10 } } } },
+		busy: { view: { kind: 'usage', windows: { rolling: { percent: 95 } } } }
+	};
+	const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
+		: tree && typeof tree === 'object' ? [tree, ...nodes(tree.children || [])] : [];
+	const hasClass = (node, name) => (node.props?.className || '').split(/\s+/).includes(name);
+	const byClass = (tree, name) => nodes(tree).filter((node) => hasClass(node, name));
+	const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
+		: tree && typeof tree === 'object' ? text(tree.children || []) : tree == null ? '' : String(tree);
+	const harness = (stored = null, specs = fixtureSpecs, error = null) => {
+		let raw = stored;
+		const writes = [];
+		const handoffs = [];
+		const state = [];
+		let cursor = 0;
+		let component;
+		const react = {
+			...reactStub,
+			useState: (init) => {
+				const index = cursor++;
+				if (!(index in state)) state[index] = index === 0 ? specs : index === 1 ? fixtureData
+					: index === 2 ? error : typeof init === 'function' ? init() : init;
+				return [state[index], (next) => { state[index] = typeof next === 'function' ? next(state[index]) : next; }];
+			}
+		};
+		const context = {
+			...sandbox,
+			window: { __ModuleLoader__: { load: (handoff) => handoffs.push(handoff) } },
+			globalThis: { innerWidth: 1000, innerHeight: 800, localStorage: {
+				getItem: (key) => { if (key !== storageKey) throw new Error('unexpected storage key'); return raw; },
+				setItem: (key, value) => { if (key !== storageKey) throw new Error('unexpected storage key'); raw = value; writes.push(value); }
+			} }
+		};
+		vm.createContext(context);
+		vm.runInContext(clientSource.replace('exports.apply = apply;',
+			'exports.__readSettings = readSettings; exports.__SettingsPanel = SettingsPanel; exports.apply = apply;'), context);
+		const exported = handoffs[0].factory((name) => {
+			if (name === 'react') return react;
+			throw new Error(`unexpected require: ${name}`);
+		});
+		exported.apply({ ...clientCtx, slots: {
+			inject: (_name, callback) => callback(),
+			register: (_spec, renderer) => { component = renderer({ t: (key) => key }); }
+		} });
+		const render = () => { cursor = 0; return component.type(component.props); };
+		const click = (tree, label) => {
+			const button = nodes(tree).find((node) => node.type === 'button' && node.props?.['aria-label'] === label);
+			if (!button) throw new Error(`missing button: ${label}`);
+			button.props.onClick();
+		};
+		const settingsPanel = () => {
+			const node = nodes(render()).find((node) => node.type === exported.__SettingsPanel);
+			if (!node) throw new Error('settings panel not open');
+			return node.type(node.props);
+		};
+		return { exported, render, click, settingsPanel, writes, raw: () => raw };
+	};
+	const capsule = (tree) => nodes(tree).find((node) => node.props?.id === 'dsh-quota-capsule');
+	const layoutSelect = (tree) => nodes(tree).find((node) => node.type === 'select'
+		&& nodes(node).some((option) => option.type === 'option' && option.props?.value === 'vertical'));
+	const oldSettings = { hidden: {}, warn: { calm: 65 }, proxy: { busy: 'http://localhost:7890' }, refreshMs: 30000, capsuleMode: 'rolling', position: { x: 600, y: 500 } };
+	const old = harness(JSON.stringify(oldSettings));
+	check('B: old settings default to horizontal without losing existing overrides', (() => {
+		const settings = old.exported.__readSettings();
+		return settings.capsuleLayout === 'horizontal' && settings.warn.calm === 65
+			&& settings.proxy.busy === oldSettings.proxy.busy && settings.refreshMs === 30000
+			&& settings.capsuleMode === 'rolling' && settings.position.x === 600
+			&& !hasClass(capsule(old.render()), 'is-vertical');
+	})());
+	check('B: absent settings default to horizontal', harness().exported.__readSettings().capsuleLayout === 'horizontal');
+	check('B: invalid stored capsule layouts fall back to horizontal', ['diagonal', '', 'VERTICAL', 'toString', '__proto__', 1, true, {}, []].every((value) => {
+		const app = harness(JSON.stringify({ capsuleLayout: value }));
+		return app.exported.__readSettings().capsuleLayout === 'horizontal' && !hasClass(capsule(app.render()), 'is-vertical');
+	}));
+	const app = harness(JSON.stringify(oldSettings));
+	const initial = app.render();
+	check('B: horizontal capsule keeps two independently bound provider dots', (() => {
+		const entries = byClass(initial, 'dsh-capsule-entry');
+		return entries.length === 2 && entries.every((entry, index) => {
+			const status = index === 0 ? 'state-ok' : 'state-error';
+			return byClass(entry, 'dsh-capsule-dot').length === 1 && byClass(entry, 'dsh-capsule-item').length === 1
+				&& hasClass(byClass(entry, 'dsh-capsule-dot')[0], status)
+				&& hasClass(byClass(entry, 'dsh-capsule-item')[0], status)
+				&& text(entry).includes(index === 0 ? 'Calm 90%' : 'Busy 5%');
+		});
+	})());
+	app.click(initial, 'expand');
+	app.click(app.render(), 'openSettings');
+	let select = layoutSelect(app.settingsPanel());
+	check('B: layout selector exposes horizontal and vertical choices', !!select && select.props.value === 'horizontal'
+		&& nodes(select).filter((node) => node.type === 'option').map((node) => node.props.value).join(',') === 'horizontal,vertical');
+	select.props.onChange({ target: { value: 'vertical' } });
+	check('B: selecting vertical persists layout and preserves unrelated settings', (() => {
+		const saved = JSON.parse(app.raw());
+		return app.writes.length === 1 && saved.capsuleLayout === 'vertical' && saved.warn.calm === 65
+			&& saved.proxy.busy === oldSettings.proxy.busy && saved.position.x === 600 && saved.refreshMs === 30000;
+	})());
+	check('B: selected vertical value survives rerender', layoutSelect(app.settingsPanel()).props.value === 'vertical');
+	app.click(app.render(), 'collapse');
+	const vertical = app.render();
+	check('B: switching layout renders vertical provider rows with their own dots', hasClass(capsule(vertical), 'is-vertical')
+		&& capsule(vertical).props.style['--dsh-capsule-rows'] === 2
+		&& byClass(vertical, 'dsh-capsule-entry').length === 2
+		&& byClass(vertical, 'dsh-capsule-entry').every((entry) => byClass(entry, 'dsh-capsule-dot').length === 1 && byClass(entry, 'dsh-capsule-item').length === 1)
+		&& text(vertical).includes('Calm 90%') && text(vertical).includes('Busy 5%'));
+	check('B: vertical layout is restored from persisted browser settings', hasClass(capsule(harness(app.raw()).render()), 'is-vertical'));
+	const hidden = harness(JSON.stringify({ ...oldSettings, capsuleLayout: 'vertical', hidden: { calm: true } })).render();
+	check('B: hiding a provider removes its whole vertical row and dot, not its neighbor', byClass(hidden, 'dsh-capsule-entry').length === 1
+		&& byClass(hidden, 'dsh-capsule-dot').length === 1 && hasClass(byClass(hidden, 'dsh-capsule-dot')[0], 'state-error')
+		&& !text(hidden).includes('Calm') && text(hidden).includes('Busy 5%'));
+	for (const layout of ['horizontal', 'vertical']) {
+		for (const [name, specs, hiddenMap] of [['all hidden', fixtureSpecs, { calm: true, busy: true }], ['no providers', { rows: [] }, {}]]) {
+			const empty = harness(JSON.stringify({ capsuleLayout: layout, hidden: hiddenMap }), specs).render();
+			check(`B: ${layout} ${name} has empty label with no orphan rows/dots`, text(empty).includes('allHidden')
+				&& byClass(empty, 'dsh-capsule-entry').length === 0 && byClass(empty, 'dsh-capsule-dot').length === 0);
+		}
+		const failed = harness(JSON.stringify({ capsuleLayout: layout }), null, 'RPC failed').render();
+		check(`B: ${layout} config failure has error marker with no orphan dots`, text(failed).includes('—')
+			&& !text(failed).includes('allHidden') && byClass(failed, 'dsh-capsule-dot').length === 0);
+	}
+	app.click(vertical, 'expand');
+	select = layoutSelect(app.settingsPanel());
+	select.props.onChange({ target: { value: 'horizontal' } });
+	check('B: horizontal can be selected and persisted again', JSON.parse(app.raw()).capsuleLayout === 'horizontal');
+	layoutSelect(app.settingsPanel()).props.onChange({ target: { value: 'vertical' } });
+	const reset = nodes(app.settingsPanel()).find((node) => node.type === 'button' && hasClass(node, 'dsh-setting-reset'));
+	reset.props.onClick();
+	check('B: reset defaults persists horizontal and clears existing overrides', (() => {
+		const saved = JSON.parse(app.raw());
+		return saved.capsuleLayout === 'horizontal' && Object.keys(saved.hidden).length === 0
+			&& Object.keys(saved.warn).length === 0 && Object.keys(saved.proxy).length === 0
+			&& saved.refreshMs === null && saved.capsuleMode === null && saved.position === null
+			&& layoutSelect(app.settingsPanel()).props.value === 'horizontal';
+	})());
+	app.click(app.render(), 'collapse');
+	check('B: reset restores horizontal render now and after reload', !hasClass(capsule(app.render()), 'is-vertical')
+		&& !hasClass(capsule(harness(app.raw()).render()), 'is-vertical'));
+	check('B: vertical CSS stacks entries and allows multiline capsule height', /#dsh-quota-capsule\.is-vertical\{[^}]*height:auto[^}]*\}/.test(clientSource)
+		&& /#dsh-quota-capsule\.is-vertical\{[^}]*display:grid[^}]*grid-template-columns:minmax\(0,1fr\) auto/.test(clientSource)
+		&& /\.is-vertical \.dsh-capsule-entry\{[^}]*grid-column:1/.test(clientSource)
+		&& /\.is-vertical \.dsh-capsule-chevron\{[^}]*grid-column:2[^}]*grid-row:1 \/ span/.test(clientSource)
+		&& /\.dsh-capsule-entry\{[^}]*display:inline-flex/.test(clientSource));
 }
 
 // Surface checks on the bundle source (gear entry, aria, persistence, overlay opt-in).

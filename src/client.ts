@@ -67,6 +67,9 @@
 				winRolling: "滚", winWeekly: "周", winMonthly: "月", winSearch: "搜索",
 				settingsCapsule: "胶囊显示",
 				capsuleName: "收起态数值",
+				capsuleLayout: "收起态布局",
+				capsuleHorizontal: "单行",
+				capsuleVertical: "多行（每供应商一行）",
 				capsuleAuto: "自动（最高）",
 				capsuleRolling: "5h 窗口",
 				capsuleWeekly: "周窗口",
@@ -115,6 +118,9 @@
 				winRolling: "Roll", winWeekly: "Wk", winMonthly: "Mo", winSearch: "Search",
 				settingsCapsule: "Capsule display",
 				capsuleName: "Collapsed value",
+				capsuleLayout: "Collapsed layout",
+				capsuleHorizontal: "Single row",
+				capsuleVertical: "Multi-row (per provider)",
 				capsuleAuto: "Auto (highest)",
 				capsuleRolling: "5h window",
 				capsuleWeekly: "Weekly window",
@@ -157,6 +163,10 @@
 			'#dsh-quota-center{position:fixed;right:18px;bottom:18px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;pointer-events:auto;color:var(--dsw-alias-label-primary,#1b1b1c);font-family:var(--dsw-font-family,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif);font-size:13px;line-height:1.45}',
 			'#dsh-quota-capsule{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 14px;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:18px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv2,0 4px 12px rgba(15,17,21,.02),0 2px 8px rgba(15,17,21,.04));cursor:pointer;font:inherit;transition:background-color 120ms ease;touch-action:none}',
 			'#dsh-quota-capsule:hover{background:var(--dsw-alias-bg-overlay,#ebeef2)}',
+			'#dsh-quota-capsule .dsh-capsule-entry{display:inline-flex;align-items:center;gap:7px}',
+			'#dsh-quota-capsule.is-vertical{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 7px;height:auto;min-height:32px;padding-top:6px;padding-bottom:6px;border-radius:14px}',
+			'#dsh-quota-capsule.is-vertical .dsh-capsule-entry{grid-column:1;justify-self:start}',
+			'#dsh-quota-capsule.is-vertical .dsh-capsule-chevron{grid-column:2;grid-row:1 / span var(--dsh-capsule-rows,1);align-self:center}',
 			'#dsh-quota-capsule .dsh-capsule-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--dsw-static-neutral-bluish-400,#adb2b8)}',
 			'#dsh-quota-capsule .dsh-capsule-dot.state-ok{background:var(--dsw-static-green-500,#22c55e)}',
 			'#dsh-quota-capsule .dsh-capsule-dot.state-warn{background:var(--dsw-static-amber-500,#f59e0b)}',
@@ -228,7 +238,7 @@
 		var CAPSULE_MODES = { auto: true, rolling: true, weekly: true, max: true };
 
 		function readSettings() {
-			var base = { hidden: {}, refreshMs: null, warn: {}, proxy: {}, capsuleMode: null, position: null };
+			var base = { hidden: {}, refreshMs: null, warn: {}, proxy: {}, capsuleMode: null, capsuleLayout: "horizontal", position: null };
 			try {
 				var raw = globalThis.localStorage.getItem(STORAGE_KEY);
 				if (raw === null) return base;
@@ -239,6 +249,7 @@
 					if (parsed.warn && typeof parsed.warn === "object") base.warn = parsed.warn;
 					if (parsed.proxy && typeof parsed.proxy === "object") base.proxy = parsed.proxy;
 					if (typeof parsed.capsuleMode === "string" && CAPSULE_MODES[parsed.capsuleMode]) base.capsuleMode = parsed.capsuleMode;
+					if (parsed.capsuleLayout === "horizontal" || parsed.capsuleLayout === "vertical") base.capsuleLayout = parsed.capsuleLayout;
 					if (parsed.position && typeof parsed.position === "object" && Number.isFinite(parsed.position.x) && Number.isFinite(parsed.position.y)) {
 						base.position = { x: parsed.position.x, y: parsed.position.y };
 					}
@@ -274,12 +285,12 @@
 		var DRAG_EDGE = 8;
 
 		/** Clamp the bottom-right corner so the capsule stays grabbable. */
-		function clampPos(x, y, vw, vh) {
+		function clampPos(x, y, vw, vh, width = 0, height = 0) {
 			var maxX = Math.max(DRAG_EDGE, vw - DRAG_EDGE);
 			var maxY = Math.max(DRAG_EDGE, vh - DRAG_EDGE);
 			return {
-				x: Math.min(Math.max(x, DRAG_EDGE), maxX),
-				y: Math.min(Math.max(y, DRAG_EDGE), maxY)
+				x: Math.min(Math.max(x, DRAG_EDGE + width), maxX),
+				y: Math.min(Math.max(y, DRAG_EDGE + height), maxY)
 			};
 		}
 
@@ -443,8 +454,11 @@
 			};
 
 			var setCapsule = function (value) {
-			onChange(Object.assign({}, settings, { capsuleMode: CAPSULE_MODES[value] ? value : null }));
-		};
+				onChange(Object.assign({}, settings, { capsuleMode: CAPSULE_MODES[value] ? value : null }));
+			};
+			var setCapsuleLayout = function (value) {
+				onChange(Object.assign({}, settings, { capsuleLayout: value === "vertical" ? "vertical" : "horizontal" }));
+			};
 
 		var refreshValue = "";
 			if (settings.refreshMs !== null && settings.refreshMs !== undefined) {
@@ -520,6 +534,16 @@
 						})))),
 				React.createElement("div", { className: "dsh-setting-section" },
 					React.createElement("div", { className: "dsh-setting-title" }, t("settingsCapsule")),
+					React.createElement("label", { className: "dsh-setting-row" },
+						React.createElement("span", { className: "dsh-setting-name" }, t("capsuleLayout")),
+						React.createElement("select", {
+							className: "dsh-setting-select",
+							style: { width: "150px", flexShrink: 0 },
+							"aria-label": t("capsuleLayout"),
+							value: settings.capsuleLayout === "vertical" ? "vertical" : "horizontal",
+							onChange: function (event) { setCapsuleLayout(event.target.value); }
+						}, React.createElement("option", { value: "horizontal" }, t("capsuleHorizontal")),
+							React.createElement("option", { value: "vertical" }, t("capsuleVertical")))),
 					React.createElement("div", { className: "dsh-setting-row" },
 						React.createElement("span", { className: "dsh-setting-name" }, t("capsuleName")),
 						React.createElement("select", {
@@ -639,7 +663,9 @@
 						if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
 						d.moved = true;
 					}
-					d.pos = clampPos(d.baseRight + dx, d.baseBottom + dy, globalThis.innerWidth, globalThis.innerHeight);
+					var capsule = document.getElementById("dsh-quota-capsule");
+					var capsuleRect = capsule ? capsule.getBoundingClientRect() : null;
+					d.pos = clampPos(d.baseRight + dx, d.baseBottom + dy, globalThis.innerWidth, globalThis.innerHeight, capsuleRect ? capsuleRect.width || 0 : 0, capsuleRect ? capsuleRect.height || 0 : 0);
 					setDragPos(d.pos);
 				};
 				var endDrag = function (event) {
@@ -663,21 +689,23 @@
 					onPointerLostPointerCapture: endDrag
 				};
 
-				// Re-clamp a restored position when the viewport shrinks
-				// (window resized or a smaller screen) so the panel cannot
-				// strand off-screen.
+				// Re-clamp after viewport or capsule size changes, including a
+				// layout switch and provider visibility/data updates. Measure
+				// the collapsed capsule so taller multi-row content stays visible.
 				React.useEffect(function () {
 					var reclamp = function () {
 						if (dragRef.current) return;
 						var p = settings.position;
 						if (!p) return;
-						var c = clampPos(p.x, p.y, globalThis.innerWidth, globalThis.innerHeight);
+						var capsule = document.getElementById("dsh-quota-capsule");
+						var rect = capsule ? capsule.getBoundingClientRect() : null;
+						var c = clampPos(p.x, p.y, globalThis.innerWidth, globalThis.innerHeight, rect ? rect.width || 0 : 0, rect ? rect.height || 0 : 0);
 						if (c.x !== p.x || c.y !== p.y) updateSettings(Object.assign({}, settings, { position: c }));
 					};
 					reclamp();
 					globalThis.addEventListener("resize", reclamp);
 					return function () { globalThis.removeEventListener("resize", reclamp); };
-				}, [panelPos ? panelPos.x + ":" + panelPos.y : ""]);
+				}, [panelPos ? panelPos.x + ":" + panelPos.y : "", expanded, settings, specs, dataById, t]);
 
 				var call = function (endpoint, payload) {
 					return ctx.connection.rpc.call(CHANNEL, RPC_METHOD_PREFIX + "/" + endpoint, payload);
@@ -777,17 +805,19 @@
 						for (var j = 0; j < rows.length; j++) {
 							var rspec = rows[j];
 							var view = views[rspec.id];
-							pairs.push(React.createElement("span", { key: rspec.id + "-dot", className: "dsh-capsule-dot state-" + view.status }));
-							pairs.push(React.createElement("span", {
-								key: rspec.id + "-value",
-								className: "dsh-capsule-item state-" + view.status + (view.kind === "usage" ? " dsh-usage" : "")
-							}, rspec.label.split("（")[0] + " " + view.summary));
+							pairs.push(React.createElement("span", { key: rspec.id, className: "dsh-capsule-entry" },
+								React.createElement("span", { className: "dsh-capsule-dot state-" + view.status }),
+								React.createElement("span", {
+									className: "dsh-capsule-item state-" + view.status + (view.kind === "usage" ? " dsh-usage" : "")
+								}, rspec.label.split("（")[0] + " " + view.summary)));
 						}
 					}
 						pairs.push(React.createElement("span", { key: "chevron", className: "dsh-capsule-chevron" }, "▾"));
 					return React.createElement("div", { id: "dsh-quota-center", style: panelStyle },
 						React.createElement("button", Object.assign({}, dragHandlers, {
 							id: "dsh-quota-capsule",
+							className: settings.capsuleLayout === "vertical" ? "is-vertical" : "",
+							style: { "--dsh-capsule-rows": Math.max(1, rows.length) },
 							type: "button",
 							"aria-label": t("expand"),
 							"aria-expanded": "false",
@@ -807,7 +837,7 @@
 						specs: specs,
 						settings: settings,
 						onChange: updateSettings,
-						onReset: function () { updateSettings({ hidden: {}, refreshMs: null, warn: {}, proxy: {}, capsuleMode: null, position: null }); }
+						onReset: function () { updateSettings({ hidden: {}, refreshMs: null, warn: {}, proxy: {}, capsuleMode: null, capsuleLayout: "horizontal", position: null }); }
 					}));
 				} else if (loadError !== null) {
 					bodyChildren.push(React.createElement("div", { key: "err", className: "dsh-quota-error" }, String(loadError)));
